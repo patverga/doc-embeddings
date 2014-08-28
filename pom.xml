@@ -9,32 +9,23 @@
     <url>pemma.co</url>
 
     <properties>
-        <scala.version>2.11.2</scala.version>
+        <scala.version>2.10.4</scala.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
-        <directory>target</directory>
-        <outputDirectory>target/classes</outputDirectory>
-        <finalName>${artifactId}-${version}</finalName>
-        <sourceDirectory>src/</sourceDirectory>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.1</version>
+                <groupId>org.scala-tools</groupId>
+                <artifactId>maven-scala-plugin</artifactId>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <scalaVersion>${scala.version}</scalaVersion>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.2.1</version>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>java</goal>
+                            <goal>compile</goal>
+                            <goal>testCompile</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -48,13 +39,31 @@
             <name>IESL Repo </name>
             <url>https://dev-iesl.cs.umass.edu/nexus/content/groups/public</url>
             <snapshots>
-                <enabled>false</enabled>
+                <enabled>true</enabled>
             </snapshots>
             <releases>
                 <enabled>true</enabled>
             </releases>
         </repository>
+        <repository>
+            <id>iesl.cs.umass.edu3</id>
+            <name>IESL repository</name>
+            <url>https://dev-iesl.cs.umass.edu/nexus/content/repositories/public-snapshots/</url>
+        </repository>
+
+        <repository>
+            <id>scala-tools.org</id>
+            <name>Scala-Tools Maven2 Repository</name>
+            <url>http://scala-tools.org/repo-releases</url>
+        </repository>
     </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>scala-tools.org</id>
+            <name>Scala-Tools Maven2 Repository</name>
+            <url>http://scala-tools.org/repo-releases</url>
+        </pluginRepository>
+    </pluginRepositories>
 
     <dependencies>
         <dependency>
@@ -66,7 +75,12 @@
         <dependency>
             <groupId>cc.factorie</groupId>
             <artifactId>factorie</artifactId>
-            <version>1.0</version>
+            <version>1.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>cc.factorie.app.nlp</groupId>
+            <artifactId>all-models</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
 
     </dependencies>
