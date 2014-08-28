@@ -57,12 +57,12 @@
     </repositories>
 
     <dependencies>
-            <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-compiler</artifactId>
-                <version>${scala.version}</version>
-                <scope>compile</scope>
-            </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-compiler</artifactId>
+            <version>${scala.version}</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>cc.factorie</groupId>
             <artifactId>factorie</artifactId>
