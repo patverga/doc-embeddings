@@ -7,6 +7,11 @@
     <version>0.0</version>
     <name>doc-embeddings-app</name>
     <url>pemma.co</url>
+
+    <properties>
+        <scala.version>2.11.2</scala.version>
+    </properties>
+
     <build>
         <directory>target</directory>
         <outputDirectory>target/classes</outputDirectory>
@@ -36,6 +41,7 @@
             </plugin>
         </plugins>
     </build>
+
     <repositories>
         <repository>
             <id>IESL Releases </id>
@@ -48,16 +54,19 @@
                 <enabled>true</enabled>
             </releases>
         </repository>
-
-
     </repositories>
 
-
     <dependencies>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-compiler</artifactId>
+                <version>${scala.version}</version>
+                <scope>compile</scope>
+            </dependency>
         <dependency>
             <groupId>cc.factorie</groupId>
             <artifactId>factorie</artifactId>
-            <version>1.0.0</version>
+            <version>1.0</version>
         </dependency>
 
     </dependencies>
