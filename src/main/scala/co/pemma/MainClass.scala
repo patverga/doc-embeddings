@@ -12,29 +12,25 @@ object MainClass  extends  App{
   val corpus = "input.clean"
 
   tokenizeText()
+//  interactiveDistance()
+
 
   def tokenizeText()
   {
     val inputDir = "./data/clean"
     val outputDir = "data/tokenized"
     val pipeline = new DocumentAnnotationPipeline(
-      Seq(segment.DeterministicTokenizer, segment.DeterministicSentenceSegmenter))
+      Seq(segment.DeterministicTokenizer, segment.PlainTokenNormalizer))
 
-    val docs = new java.io.File(inputDir).listFiles.map(file => {
+    new java.io.File(inputDir).listFiles.toSeq.par.foreach(file => {
       println(s"Reading in raw text from \'$file\'. ")
       //    val lines = io.Source.fromInputStream(new FileInputStream(corpus)).
       val str = io.Source.fromFile(file).getLines.mkString
-      (file, LoadPlainText.fromString(str).head)
-    }).toSeq
+      val doc = LoadPlainText.fromString(str).head
 
-    docs.par.foreach(doc => {
-      pipeline.process(doc._2)
-    })
+      println(s"Processing $file")
+      pipeline.process(doc)
 
-    docs.foreach(fileDoc =>
-    {
-      val file = fileDoc._1
-      val doc = fileDoc._2
       val outputFile = s"$outputDir/${file.getName.substring(0, file.getName.indexOf(".conv"))}.tokenized"
       println(s" Writing to $outputFile")
       val writer = new java.io.PrintWriter(s"$outputFile")
@@ -64,6 +60,6 @@ object MainClass  extends  App{
   }
 
   def interactiveDistance() {
-    EmbeddingDistance.nearestNeighbours("vector", 5)
+    EmbeddingDistance.nearestNeighbours("vectors", 5)
   }
 }
