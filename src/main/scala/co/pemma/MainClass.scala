@@ -9,15 +9,17 @@ import cc.factorie.app.nlp.{DocumentAnnotationPipeline, segment}
  */
 object MainClass  extends  App{
 
-  val corpus = "input.clean"
+  val inputDir = "./data/clean"
+  val corpus = "./data/corpus"
+  val tokenizedDir = "./data/tokenized"
 
-  tokenizeText()
+//  tokenizeText()
+  createEmbeddings()
 //  interactiveDistance()
 
 
   def tokenizeText()
   {
-    val inputDir = "./data/clean"
     val outputDir = "data/tokenized"
     val pipeline = new DocumentAnnotationPipeline(
       Seq(segment.DeterministicTokenizer, segment.PlainTokenNormalizer))
@@ -44,6 +46,8 @@ object MainClass  extends  App{
 
 
   def createEmbeddings() {
+//    val inputs = new java.io.File(tokenizedDir).listFiles.toSeq.map(str => s" --train=$str")
+
     val opts = new EmbeddingOpts()
     opts.parse(Seq(
       "--ignore-stopwords=true",
@@ -51,8 +55,9 @@ object MainClass  extends  App{
       "--encoding=UTF8",
       "--save-vocab=./vocab",
       //    "--load-vocab=./vocab",
-      "--output=./vectors",
-      s"--train=./$corpus"))
+      s"--train=./$corpus",
+      "--output=./vectors"))
+
     val wordEmbedModel = new SkipGramNegSamplingEmbeddingModel(opts)
     wordEmbedModel.buildVocab()
     wordEmbedModel.learnEmbeddings()
