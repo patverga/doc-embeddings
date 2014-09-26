@@ -15,11 +15,12 @@ import scala.collection.JavaConversions._
 /**
  * Created by pv on 8/28/14.
  */
-object Clusterer  extends  App{
+object Clusterer  extends  App
+{
   val numClusters = 35
   val numIterations = 250
 
-  def clusterWordVectors(doc :String, wordVectors : WordVectorMath, K : Int = numClusters, iterations : Int = numIterations)
+  def documentCentroids(doc :String, wordVectors : WordVectorMath, K : Int, iterations : Int)
   {
     // split the doc into words
     val words = doc.split("\\s+|\\n").filter(w => !nlp.lexicon.StopWords.containsWord(w)  && w.size > 1)
@@ -28,7 +29,7 @@ object Clusterer  extends  App{
     val wordTensors = for ( w <- words ; wv = wordVectors.word2Vec(w); if wv != null)
     yield (w, wordVectors.word2Vec(w))
 
-    val kmeans = clusterWords( doc, wordTensors)
+    val kmeans = clusterDocument(doc, wordTensors, K, iterations)
     kmeans.getClusterCentroids.foreach(c => {
       val centroidTensor = new DenseTensor1(c.toDoubleArray)
       println(wordVectors.nearestNeighbors(Array(), centroidTensor, 1).head._1)
@@ -39,7 +40,7 @@ object Clusterer  extends  App{
 //    println(doc)
   }
 
-  def clusterWords(doc: String, wordTensors: Array[(String, DenseTensor1)], K : Int = numClusters, iterations : Int = numIterations) 
+  def clusterDocument(doc: String, wordTensors: Array[(String, DenseTensor1)], K : Int, iterations : Int)
   : SimpleKMeans =
   {
     val vecSize = wordTensors.head._2.size
@@ -57,14 +58,14 @@ object Clusterer  extends  App{
     println("Running KMeans")
     val kmeans = new SimpleKMeans()
     kmeans.setPreserveInstancesOrder(true);
-    kmeans.setNumClusters(numClusters)
-    kmeans.setMaxIterations(numIterations)
+    kmeans.setNumClusters(K)
+    kmeans.setMaxIterations(iterations)
     kmeans.buildClusterer(instances)
 
     kmeans
   }
 
-  def clusterCentroidsToWords(kmeans : SimpleKMeans, wordVectors : WordVectorMath)
+  def centroidsToWords(kmeans : SimpleKMeans, wordVectors : WordVectorMath)
   {
     val words = kmeans.getClusterCentroids.flatMap(centroid => {
       val tensor = new DenseTensor1(centroid.toDoubleArray)

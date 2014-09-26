@@ -10,17 +10,6 @@ import scala.collection.mutable
  * Created by pat on 9/26/14.
  */
 
-
-object TestDistance {
-  def main(args: Array[String])
-  {
-    val serialLocation = "./vectors/serial-vectors"
-//    WordVectorsSerialManager.vectorTxt2Serial("./vectors/google-vectors", serialLocation)
-    val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
-    distance.interactiveNearestNeighbor()
-  }
-}
-
 class WordVectorMath(embedding : WordVectors){
   var threshold = embedding.threshold
   var vocab = embedding.vocab
@@ -96,6 +85,14 @@ class WordVectorMath(embedding : WordVectors){
       null
   }
 }
+
+object TestDistance extends App{
+  val serialLocation = "./vectors/serial-vectors"
+  WordVectorsSerialManager.vectorTxt2Serial("./vectors/google-vectors", serialLocation)
+  val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
+  distance.interactiveNearestNeighbor()
+}
+
 
 
 
