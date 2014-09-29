@@ -13,7 +13,9 @@ import scala.io.Source
 class WordVectors extends Serializable
 {
   var threshold = 0
-  var vocab = Array[String]()
+  var unigrams = Array[String]()
+  var bigrams = Array[String]()
+  var trigrams = Array[String]()
   var weights = Array[DenseTensor1]()
   var D = 0
   var V = 0
@@ -25,15 +27,30 @@ class WordVectors extends Serializable
     V = if (threshold > 0 && details(0) > threshold) threshold else details(0)
     D = details(1)
     println("# words : %d , # size : %d".format(V, D))
-    vocab = new Array[String](V)
     weights = new Array[DenseTensor1](V)
-    for (v <- 0 until V) {
-      val line = lineItr.next.stripLineEnd.split(' ')
-      vocab(v) = line(0)//.toLowerCase
-      weights(v) = new DenseTensor1(D, 0) // allocate the memory
-      for (d <- 0 until D) weights(v)(d) = line(d + 1).toDouble
-      weights(v) /= weights(v).twoNorm
+    val uni = Seq[(String, DenseTensor1)]()
+    val bi = Seq[(String, DenseTensor1)]()
+    val tri = Seq[(String, DenseTensor1)]()
+    for (v <- 0 until V)
+    {
+      val line = lineItr.next().stripLineEnd.split(' ')
+      val word = line(0)
+
+      val weight = new DenseTensor1(D, 0) // allocate the memory
+      for (d <- 0 until D) weight(d) = line(d + 1).toDouble
+      weight /= weight.twoNorm
+
+      val underscoreCount = word.length() - word.replace("_", "").length()
+      if (underscoreCount == 0)
+        uni :+ (word, weight)
+      else if (underscoreCount == 1)
+        bi :+ (word, weight)
+      else if (underscoreCount == 2)
+        tri :+ (word, weight)
     }
+    unigrams = uni.zipWithIndex.map({case((wrd, wt), idx) => weights(idx) = wt;  wrd }).toArray
+    bigrams = bi.zipWithIndex.map({case((wrd, wt), idx) => weights(idx + unigrams.length) = wt;  wrd }).toArray
+    trigrams = tri.zipWithIndex.map({case((wrd, wt), idx) => weights(idx + unigrams.length + bigrams.length) = wt;  wrd }).toArray
     println("loaded vocab and their embeddings")
   }
 }
