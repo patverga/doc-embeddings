@@ -2,6 +2,7 @@ package co.pemma.embeddings
 
 import cc.factorie.app.nlp.embeddings.TensorUtils
 import cc.factorie.la.DenseTensor1
+import org.apache.commons.lang3.text.WordUtils
 
 import scala.collection.mutable
 
@@ -23,31 +24,38 @@ class WordVectorMath(embedding : WordVectors){
     while (true) {
       print("Enter word (EXIT to break) : ")
       val words = readLine().stripLineEnd.split(' ')
-      val wordIds = words.map(word => getID(word)).filter(id => id != -1)
 
-      if (wordIds.size == 0) {
-        println("words not in vocab")
-      }
-      else if (words.size == 1 && words(0) == "EXIT") {
+      if (words.size == 1 && words(0) == "EXIT") {
         return
       } else {
         // sum the input word vectors
-        val embedding_in = new DenseTensor1(D, 0)
-        wordIds.foreach(wordId => embedding_in.+=(weights(wordId)))
-        embedding_in./=(wordIds.size)
-        val pq = nearestNeighbors(words, embedding_in, K)
-        val arr = new Array[(String, Double)](pq.size)
-        var i = 0
-        while (pq.nonEmpty) { // min heap
-          arr(i) = (pq.head._1, pq.head._2)
-          i += 1
-          pq.dequeue()
+        val embedding_in = sumWords(words)
+        if (embedding_in != null) {
+          val pq = nearestNeighbors(words, embedding_in, K)
+          val arr = new Array[(String, Double)](pq.size)
+          var i = 0
+          while (pq.nonEmpty) {
+            // min heap
+            arr(i) = (pq.head._1, pq.head._2)
+            i += 1
+            pq.dequeue()
+          }
+          println("\t\t\t\t\t\tWord\t\tCosine Distance")
+          arr.reverse.foreach(x => println("%50s\t\t%f".format(x._1, x._2)))
         }
-        println("\t\t\t\t\t\tWord\t\tCosine Distance")
-        arr.reverse.foreach(x => println("%50s\t\t%f".format(x._1, x._2)))
-
       }
     }
+  }
+
+  def sumWords(words: Array[String]) : DenseTensor1 = {
+    val wordIds = words.map(word => getID(word)).filter(id => id != -1)
+    if (wordIds.size == 0) {
+      return null
+    }
+    val embedding_in = new DenseTensor1(D, 0)
+    wordIds.foreach(wordId => embedding_in.+=(weights(wordId)))
+    embedding_in./=(wordIds.size)
+    embedding_in
   }
 
   def nearestNeighbors(words: Array[String], embedding_in: DenseTensor1, k : Int)
@@ -72,7 +80,7 @@ class WordVectorMath(embedding : WordVectors){
     def compare(a: (String, Double), b: (String, Double)) = -a._2.compare(b._2)
   }
   private def getID(word: String): Int = {
-    for (i <- 0 until vocab.length) if (vocab(i).equalsIgnoreCase(word))
+    for (i <- 0 until vocab.length) if (vocab(i).equals(word))
       return i
     -1
   }
@@ -84,13 +92,31 @@ class WordVectorMath(embedding : WordVectors){
     else
       null
   }
+  def phrase2Vec(phrase:String):DenseTensor1 =
+  {
+    // make various versions of the input phrase in order of priority
+    val phraseUnderline = phrase.replaceAll(" ", "_")
+    val phrasings = Set(WordUtils.capitalizeFully(phraseUnderline, '_'), phraseUnderline, phraseUnderline.toLowerCase, phrase, phrase.toLowerCase)
+    phrasings.foreach(p => {
+      // if this creates a tensor, return it
+      val tensor = sumWords(p.split("\\s+"))
+      if (tensor != null) {
+        println(s"found tensor for $p")
+        return tensor
+      }
+    })
+    println("words not in vocab")
+    null
+  }
 }
 
 object TestDistance extends App{
   val serialLocation = "./vectors/serial-vectors"
-  WordVectorsSerialManager.vectorTxt2Serial("./vectors/google-vectors", serialLocation)
+//  WordVectorsSerialManager.vectorTxt2Serial("./vectors/google-vectors", serialLocation)
   val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
+//  println(distance.phrase2Vec("bill clinton"))
   distance.interactiveNearestNeighbor()
+
 }
 
 

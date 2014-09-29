@@ -17,30 +17,33 @@ import scala.collection.JavaConversions._
  */
 object Clusterer  extends  App
 {
+  // these defaults are broken - get reset to 0 at runtime, not sure why
   val numClusters = 35
   val numIterations = 250
 
-  def documentCentroids(doc :String, wordVectors : WordVectorMath, K : Int, iterations : Int)
+  def documentCentroids(doc : Array[String], wordVectors : WordVectorMath, K : Int, iterations : Int)
+  : Seq[DenseTensor1] =
   {
     // split the doc into words
-    val words = doc.split("\\s+|\\n").filter(w => !nlp.lexicon.StopWords.containsWord(w)  && w.size > 1)
+    val words = doc.filter(w => !nlp.lexicon.StopWords.containsWord(w)  && w.size > 1)
     // turn each word into an embedding vector
     print("Converting fac vectors to weka instances...")
     val wordTensors = for ( w <- words ; wv = wordVectors.word2Vec(w); if wv != null)
-    yield (w, wordVectors.word2Vec(w))
+    yield (w, wv)
 
-    val kmeans = clusterDocument(doc, wordTensors, K, iterations)
-    kmeans.getClusterCentroids.foreach(c => {
-      val centroidTensor = new DenseTensor1(c.toDoubleArray)
-      println(wordVectors.nearestNeighbors(Array(), centroidTensor, 1).head._1)
+    val kmeans = clusterDocument(wordTensors, K, iterations)
+    println("converting weka centroids to fac vectors..")
+    kmeans.getClusterCentroids.map(c => {
+      new DenseTensor1(c.toDoubleArray)
     })
-//    closestCentroid(kmeans, wordTensors, "software piracy")
-//    sumWords(doc, wordTensors)
-
-//    println(doc)
+//    val centroidWords = centroidTensors.map(c =>{
+//      val w = wordVectors.nearestNeighbors(Array(), c, 1).head._1
+//      println(w)
+//      w
+//    }).mkString(" ")
   }
 
-  def clusterDocument(doc: String, wordTensors: Array[(String, DenseTensor1)], K : Int, iterations : Int)
+  def clusterDocument(wordTensors: Array[(String, DenseTensor1)], K : Int, iterations : Int)
   : SimpleKMeans =
   {
     val vecSize = wordTensors.head._2.size

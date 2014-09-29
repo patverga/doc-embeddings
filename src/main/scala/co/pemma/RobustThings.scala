@@ -1,13 +1,21 @@
 package co.pemma
 
-import co.pemma.embeddings.{WordVectorsSerialManager, WordVectorMath}
-import edu.umass.ciir.ede.features.{FeedbackParams, ExpansionModels}
-import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
+import cc.factorie.app.nlp
+import cc.factorie.app.nlp.lexicon.StopWords
+import cc.factorie.app.nlp.ner.NoEmbeddingsConllStackedChainNer
+import cc.factorie.app.nlp.parse.OntonotesTransitionBasedParser
+import cc.factorie.app.nlp.phrase.{NounPhraseEntityTypeLabeler, PosBasedNounPhraseFinder}
+import cc.factorie.app.nlp.pos.OntonotesForwardPosTagger
+import cc.factorie.app.nlp.{Token, DocumentAnnotatorPipeline, MutableDocumentAnnotatorMap, Document}
+import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
+import edu.umass.ciir.ede.features.ExpansionModels
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
+import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import main.scala.co.pemma.Clusterer
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.core.tokenize.Tokenizer
 import org.lemurproject.galago.utility.Parameters
+
 import scala.collection.JavaConversions._
 
 /**
@@ -15,7 +23,7 @@ import scala.collection.JavaConversions._
  */
 object RobustThings extends App {
   ////// initializing things ///////
-  val robustIndexLocation = "./index/robust04"
+  val robustIndexLocation = "./index/robust04-g35"
   val queries = loadTsvQueries("./data/rob04.titles.tsv")
   val robustSearcher: GalagoSearcher = {
     val indexParam = new Parameters()
@@ -42,7 +50,19 @@ object RobustThings extends App {
     queries.toMap
   }
 
+  val nlpSteps = Seq(
+    OntonotesForwardPosTagger,
+    NoEmbeddingsConllStackedChainNer,
+    OntonotesTransitionBasedParser,
+    PosBasedNounPhraseFinder,
+    NounPhraseEntityTypeLabeler
+  )
+  val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
+  for (annotator <- nlpSteps) map += annotator
+  val pipeline = DocumentAnnotatorPipeline(map=map.toMap, prereqs=Nil, nlpSteps.flatMap(_.postAttrs))
+
   ////// done initializing ///////
+
 
   def expansionTerms(galagoSearcher: GalagoSearcher, query: String, numDocs: Int = 1000, numTerms: Int = 20, collection: String = "robust")
   : (Seq[(String, Double)], Seq[ScoredDocument]) = {
@@ -72,23 +92,31 @@ object RobustThings extends App {
   }
 
 
+
   // process the querytext, convert to galgo
   val queryText = queries.head._2
   val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(queryText)).queryStr
 
   // get expansion and top docs for robust and wiki
-  val (rm3Terms, collectionRankings) = expansionTerms(robustSearcher, galagoQuery, 5, 20)
+  val (collectionTerms, collectionRankings) = expansionTerms(robustSearcher, galagoQuery, 5, 20)
   val (wikiTerms, wikiRankings) = expansionTerms(wikiSearcher, galagoQuery, 5, 20, "wikipedia")
+  val wikiEntities = wikiRankings.map(_.documentName)
+
+  // setup embeddings
+  val serialLocation = "./vectors/serial-vectors"
+//  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
+//  val queryVector = wordVecs.phrase2Vec(queryText)
 
   // grab the actual docs form galago
   val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
-  val docString = DocReader.readRobust(collectionDocs.head.text)
-  println(docString)
+  collectionDocs.foreach(doc => {
+    val facDoc = pipeline.process(new Document(DocReader.readRobust(doc.text)))
 
-  // setup embedulon
-  val serialLocation = "./vectors/serial-vectors"
-  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
-  Clusterer.documentCentroids(docString, wordVecs, 35, 250)
+//    // convert document to centroids
+//    val docCentroids = Clusterer.documentCentroids(docString, wordVecs, 35, 250)
+//    val bestCentroidDistance = docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
+//    val sumDistance = queryVector.cosineSimilarity(wordVecs.sumWords(docString))
 
-
+//    println(bestCentroidDistance, sumDistance)
+  })
 }

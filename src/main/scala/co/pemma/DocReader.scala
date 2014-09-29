@@ -3,6 +3,7 @@ package co.pemma
 import java.io.{FileInputStream, BufferedInputStream}
 import java.util.zip.GZIPInputStream
 
+import cc.factorie.app.nlp
 import cc.factorie.app.nlp.load.LoadPlainText
 import cc.factorie.app.nlp.{segment, DocumentAnnotationPipeline}
 
@@ -17,11 +18,15 @@ object DocReader
 
   def readRobust(robustXml : String) : String =
   {
-    val headLineSection = robustXml.split("<HEADLINE>",2)(1)
-    val headline = headLineSection.split("</HEADLINE>",2)(0)
+    val headline = if (robustXml.contains("<HEADLINE>")){
+      val headLineSection = robustXml.split("<HEADLINE>",2)(1)
+      headLineSection.split("</HEADLINE>",2)(0)}
+    else ""
     val textSection = robustXml.split("<TEXT>",2)(1)
     val text = textSection.split("</TEXT>",2)(0)
-    headline + " " + text
+    // combine headline and body and remove stopwords
+    headline + " " + text.split("\\s+").filter(w => !nlp.lexicon.StopWords.containsWord(w.toLowerCase()) && w.size > 1).mkString(" ")
+
   }
 
   def readNaNewsData(inputLoc : String) : Seq[String] =
