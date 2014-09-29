@@ -64,7 +64,7 @@ object RobustThings extends App {
   ////// done initializing ///////
 
 
-  def expansionTerms(galagoSearcher: GalagoSearcher, query: String, numDocs: Int = 1000, numTerms: Int = 20, collection: String = "robust")
+  def expansionTerms(galagoSearcher: GalagoSearcher, query: String, numDocs: Int = 1000, expansionDocs : Int = 5, numTerms: Int = 20, collection: String = "robust")
   : (Seq[(String, Double)], Seq[ScoredDocument]) = {
     val params = {
       val p = new Parameters()
@@ -88,7 +88,7 @@ object RobustThings extends App {
       }
     }
     val rankings = galagoSearcher.retrieveScoredDocuments(galagoQuery, Some(params), numDocs)
-    (ExpansionModels.lce(rankings, galagoSearcher, numTerms, collection), rankings)
+    (ExpansionModels.lce(rankings take expansionDocs, galagoSearcher, numTerms, collection), rankings)
   }
 
 
@@ -98,8 +98,8 @@ object RobustThings extends App {
   val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(queryText)).queryStr
 
   // get expansion and top docs for robust and wiki
-  val (collectionTerms, collectionRankings) = expansionTerms(robustSearcher, galagoQuery, 5, 20)
-  val (wikiTerms, wikiRankings) = expansionTerms(wikiSearcher, galagoQuery, 5, 20, "wikipedia")
+  val (collectionTerms, collectionRankings) = expansionTerms(robustSearcher, galagoQuery, 1000, 20)
+  val (wikiTerms, wikiRankings) = expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
   val wikiEntities = wikiRankings.map(_.documentName)
 
   // setup embeddings
