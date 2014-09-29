@@ -21,14 +21,14 @@ object Clusterer  extends  App
   val numClusters = 35
   val numIterations = 250
 
-  def documentCentroids(doc : Array[String], wordVectors : WordVectorMath, K : Int, iterations : Int)
+  def documentCentroids(doc : Iterable[String], wordVectors : WordVectorMath, K : Int, iterations : Int)
   : Seq[DenseTensor1] =
   {
     // split the doc into words
     val words = doc.filter(w => !nlp.lexicon.StopWords.containsWord(w)  && w.size > 1)
     // turn each word into an embedding vector
     print("Converting fac vectors to weka instances...")
-    val wordTensors = for ( w <- words ; wv = wordVectors.word2Vec(w); if wv != null)
+    val wordTensors = for ( w <- words ; wv = wordVectors.phrase2Vec(w); if wv != null)
     yield (w, wv)
 
     val kmeans = clusterDocument(wordTensors, K, iterations)
@@ -43,7 +43,7 @@ object Clusterer  extends  App
 //    }).mkString(" ")
   }
 
-  def clusterDocument(wordTensors: Array[(String, DenseTensor1)], K : Int, iterations : Int)
+  def clusterDocument(wordTensors: Iterable[(String, DenseTensor1)], K : Int, iterations : Int)
   : SimpleKMeans =
   {
     val vecSize = wordTensors.head._2.size

@@ -157,4 +157,32 @@ object ExpansionModels {
     //   tokenMap.put("all", new ListBuffer()++=terms)
     tokenMap.toMap
   }
+
+  def expansionTerms(galagoSearcher: GalagoSearcher, galagoQuery: String, numDocs: Int = 1000, expansionDocs : Int = 5, numTerms: Int = 20, collection: String = "robust")
+  : (Seq[(String, Double)], Seq[ScoredDocument]) = {
+    val params = {
+      val p = new Parameters()
+      if (collection == "robust") {
+        p.set("mu", 1269.0)
+        p.set("defaultSmoothingMu", 1269.0)
+        p.set("uniw", 0.87264)
+        p.set("odw", 0.07906)
+        p.set("uww", 0.04829)
+        p.set("deltaReady", true)
+        p
+      }
+      else {
+        p.set("mu", 96400.0)
+        p.set("defaultSmoothingMu", 96400.0)
+        p.set("uniw", 0.85)
+        p.set("odw", 0.1)
+        p.set("uww", 0.05)
+        p.set("deltaReady", true)
+        p
+      }
+    }
+    val rankings = galagoSearcher.retrieveScoredDocuments(galagoQuery, Some(params), numDocs)
+    (ExpansionModels.lce(rankings take expansionDocs, galagoSearcher, numTerms, collection), rankings)
+  }
+
 }

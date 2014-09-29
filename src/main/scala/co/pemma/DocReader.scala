@@ -16,7 +16,7 @@ import scala.xml.XML
 object DocReader
 {
 
-  def readRobust(robustXml : String) : String =
+  def parseRobust(robustXml : String) : String =
   {
     val headline = if (robustXml.contains("<HEADLINE>")){
       val headLineSection = robustXml.split("<HEADLINE>",2)(1)
@@ -24,8 +24,8 @@ object DocReader
     else ""
     val textSection = robustXml.split("<TEXT>",2)(1)
     val text = textSection.split("</TEXT>",2)(0)
-    // combine headline and body and remove stopwords
-    headline + " " + text.split("\\s+").filter(w => !nlp.lexicon.StopWords.containsWord(w.toLowerCase()) && w.size > 1).mkString(" ")
+    // combine headline and body
+    headline + " " + text
 
   }
 

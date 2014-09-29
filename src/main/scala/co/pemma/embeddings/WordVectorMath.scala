@@ -47,17 +47,6 @@ class WordVectorMath(embedding : WordVectors){
     }
   }
 
-  def sumWords(words: Array[String]) : DenseTensor1 = {
-    val wordIds = words.map(word => getID(word)).filter(id => id != -1)
-    if (wordIds.size == 0) {
-      return null
-    }
-    val embedding_in = new DenseTensor1(D, 0)
-    wordIds.foreach(wordId => embedding_in.+=(weights(wordId)))
-    embedding_in./=(wordIds.size)
-    embedding_in
-  }
-
   def nearestNeighbors(words: Array[String], embedding_in: DenseTensor1, k : Int)
   : mutable.PriorityQueue[(String, Double)] = {
     val pq = new mutable.PriorityQueue[(String, Double)]()(dis())
@@ -75,15 +64,32 @@ class WordVectorMath(embedding : WordVectors){
     pq
   }
 
-  // private helper functions
-  private def dis() = new Ordering[(String, Double)] {
-    def compare(a: (String, Double), b: (String, Double)) = -a._2.compare(b._2)
+  def sumWords(words: Iterable[String]) : DenseTensor1 = {
+    val wordIds = words.map(word => getID(word)).filter(id => id != -1)
+    if (wordIds.size == 0) {
+      return null
+    }
+    val embedding_in = new DenseTensor1(D, 0)
+    wordIds.foreach(wordId => embedding_in.+=(weights(wordId)))
+    embedding_in./=(wordIds.size)
+    embedding_in
   }
-  private def getID(word: String): Int = {
-    for (i <- 0 until vocab.length) if (vocab(i).equals(word))
-      return i
-    -1
+
+  def sumPhrases(words: Iterable[String]) : DenseTensor1 = {
+        val embedding_in = new DenseTensor1(D, 0)
+    var tensorsUsed = 0
+    words.foreach(w => {
+      val tensor = phrase2Vec(w)
+      if (tensor != null)
+      {
+        tensorsUsed += 1
+        embedding_in.+=(tensor)
+      }
+    })
+    embedding_in./=(tensorsUsed)
+    embedding_in
   }
+
   def word2Vec(word:String):DenseTensor1 =
   {
     val id = getID(word)
@@ -92,6 +98,7 @@ class WordVectorMath(embedding : WordVectors){
     else
       null
   }
+
   def phrase2Vec(phrase:String):DenseTensor1 =
   {
     // make various versions of the input phrase in order of priority
@@ -101,21 +108,32 @@ class WordVectorMath(embedding : WordVectors){
       // if this creates a tensor, return it
       val tensor = sumWords(p.split("\\s+"))
       if (tensor != null) {
-        println(s"found tensor for $p")
+//        println(s"found tensor for $p")
         return tensor
       }
     })
     println("words not in vocab")
     null
   }
+
+  // private helper functions
+  private def dis() = new Ordering[(String, Double)] {
+    def compare(a: (String, Double), b: (String, Double)) = -a._2.compare(b._2)
+  }
+  private def getID(word: String): Int = {
+    for (i <- 0 until vocab.length) if (vocab(i).equals(word))
+      return i
+    -1
+  }
 }
 
 object TestDistance extends App{
-  val serialLocation = "./vectors/serial-vectors"
-//  WordVectorsSerialManager.vectorTxt2Serial("./vectors/google-vectors", serialLocation)
-  val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
+  val inLocation = "./vectors/newswire-vectors.txt"
+  val outLocation = "./vectors/newswire-vectors.dat"
+  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
+//  val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(outLocation))
 //  println(distance.phrase2Vec("bill clinton"))
-  distance.interactiveNearestNeighbor()
+//  distance.interactiveNearestNeighbor()
 
 }
 

@@ -1,14 +1,14 @@
 package co.pemma
 
-import cc.factorie.app.nlp
 import cc.factorie.app.nlp.lexicon.StopWords
 import cc.factorie.app.nlp.ner.NoEmbeddingsConllStackedChainNer
 import cc.factorie.app.nlp.parse.OntonotesTransitionBasedParser
-import cc.factorie.app.nlp.phrase.{NounPhraseEntityTypeLabeler, PosBasedNounPhraseFinder}
+import cc.factorie.app.nlp.phrase._
 import cc.factorie.app.nlp.pos.OntonotesForwardPosTagger
-import cc.factorie.app.nlp.{Token, DocumentAnnotatorPipeline, MutableDocumentAnnotatorMap, Document}
+import cc.factorie.app.nlp.{Document, DocumentAnnotatorPipeline, MutableDocumentAnnotatorMap}
 import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
 import edu.umass.ciir.ede.features.ExpansionModels
+import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import main.scala.co.pemma.Clusterer
@@ -16,6 +16,7 @@ import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.core.tokenize.Tokenizer
 import org.lemurproject.galago.utility.Parameters
 
+import java.io.File
 import scala.collection.JavaConversions._
 
 /**
@@ -54,8 +55,9 @@ object RobustThings extends App {
     OntonotesForwardPosTagger,
     NoEmbeddingsConllStackedChainNer,
     OntonotesTransitionBasedParser,
-    PosBasedNounPhraseFinder,
-    NounPhraseEntityTypeLabeler
+    BILOUChainChunker,
+    NPChunkMentionFinder
+//    NounPhraseEntityTypeLabeler
   )
   val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
   for (annotator <- nlpSteps) map += annotator
@@ -64,59 +66,61 @@ object RobustThings extends App {
   ////// done initializing ///////
 
 
-  def expansionTerms(galagoSearcher: GalagoSearcher, query: String, numDocs: Int = 1000, expansionDocs : Int = 5, numTerms: Int = 20, collection: String = "robust")
-  : (Seq[(String, Double)], Seq[ScoredDocument]) = {
-    val params = {
-      val p = new Parameters()
-      if (collection == "robust") {
-        p.set("mu", 1269.0)
-        p.set("defaultSmoothingMu", 1269.0)
-        p.set("uniw", 0.87264)
-        p.set("odw", 0.07906)
-        p.set("uww", 0.04829)
-        p.set("deltaReady", true)
-        p
-      }
-      else {
-        p.set("mu", 96400.0)
-        p.set("defaultSmoothingMu", 96400.0)
-        p.set("uniw", 0.85)
-        p.set("odw", 0.1)
-        p.set("uww", 0.05)
-        p.set("deltaReady", true)
-        p
-      }
-    }
-    val rankings = galagoSearcher.retrieveScoredDocuments(galagoQuery, Some(params), numDocs)
-    (ExpansionModels.lce(rankings take expansionDocs, galagoSearcher, numTerms, collection), rankings)
-  }
-
-
-
   // process the querytext, convert to galgo
   val queryText = queries.head._2
   val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(queryText)).queryStr
 
   // get expansion and top docs for robust and wiki
-  val (collectionTerms, collectionRankings) = expansionTerms(robustSearcher, galagoQuery, 1000, 20)
-  val (wikiTerms, wikiRankings) = expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
+  val (collectionTerms, collectionRankings) = ExpansionModels.expansionTerms(robustSearcher, galagoQuery, 5, 20)
+  val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
   val wikiEntities = wikiRankings.map(_.documentName)
 
   // setup embeddings
-  val serialLocation = "./vectors/serial-vectors"
-//  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(serialLocation))
-//  val queryVector = wordVecs.phrase2Vec(queryText)
+  val vectorLocation = "./vectors/newswire-vectors.dat"
+//  val vectorLocation = "./vectors/serial-vectors"
+  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(vectorLocation))
+  val queryVector = wordVecs.phrase2Vec(queryText)
 
   // grab the actual docs form galago
   val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
-  collectionDocs.foreach(doc => {
-    val facDoc = pipeline.process(new Document(DocReader.readRobust(doc.text)))
+  val embeddingRankings = collectionDocs.map(doc =>
+  {
+    // use factorie for phrase chunking
+    val usedTokens = scala.collection.mutable.Set[Int]()
+    val facDoc = pipeline.process(new Document(DocReader.parseRobust(doc.text)))
+    val docString = for (phrase <- facDoc.attr[PhraseList] if !StopWords.containsWord(phrase.string))
+    yield {
+      phrase.tokens.foreach(usedTokens += _.position)
+      phrase.string
+    }
 
-//    // convert document to centroids
-//    val docCentroids = Clusterer.documentCentroids(docString, wordVecs, 35, 250)
-//    val bestCentroidDistance = docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
-//    val sumDistance = queryVector.cosineSimilarity(wordVecs.sumWords(docString))
+    // collect phrases and tokens not in phrases
+    val docStringArray = docString ++ (for (token <- facDoc.tokens; str = token.string
+                              if !usedTokens.contains(token.position) &&
+                                !StopWords.containsWord(str.toLowerCase) &&
+                                str.size > 1) yield token.string)
 
-//    println(bestCentroidDistance, sumDistance)
+    // convert document to centroids
+    val docCentroids = Clusterer.documentCentroids(docStringArray, wordVecs, 10, 250)
+    val bestCentroidDistance = docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
+    val sumDistance = queryVector.cosineSimilarity(wordVecs.sumPhrases(docStringArray))
+
+    (doc, bestCentroidDistance, sumDistance)
   })
+
+  // sort and export rankings
+  val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
+  val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({case(d, i) => (d._1.name, d._3, i+1) })
+
+  TrecRunWriter.writeRunFileFromTuple(new File("out/centroid"), Seq((queries.head._1+"", centroidRankings)))
+  TrecRunWriter.writeRunFileFromTuple(new File("out/sum"), Seq((queries.head._1+"", sumRankings)))
+
+//  println("centroids")
+//  centroidRankings.foreach(d => println(d._1.name, d._2))
+//  println("sum")
+//  sumRankings.foreach(d => println(d._1.name, d._3))
+//  println("sdm")
+//  collectionRankings.foreach(d => println(d.documentName, d.score))
+
+
 }
