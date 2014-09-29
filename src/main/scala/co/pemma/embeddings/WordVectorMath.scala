@@ -112,7 +112,7 @@ class WordVectorMath(embedding : WordVectors){
         return tensor
       }
     })
-    println("words not in vocab")
+    println(s"words not in vocab : $phrase")
     null
   }
 

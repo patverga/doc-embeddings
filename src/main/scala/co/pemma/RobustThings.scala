@@ -67,11 +67,13 @@ object RobustThings extends App {
 
 
   // process the querytext, convert to galgo
-  val queryText = queries.head._2
+  val queryId = if (args.length > 0) args(0).toInt else queries.head._1
+  val queryText = queries.getOrElse(queryId, "")
+  println(s"Embedding reranking for query $queryId : $queryText")
   val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(queryText)).queryStr
 
   // get expansion and top docs for robust and wiki
-  val (collectionTerms, collectionRankings) = ExpansionModels.expansionTerms(robustSearcher, galagoQuery, 5, 20)
+  val (collectionTerms, collectionRankings) = ExpansionModels.expansionTerms(robustSearcher, galagoQuery, 1000, 5, 20)
   val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
   val wikiEntities = wikiRankings.map(_.documentName)
 
@@ -111,16 +113,7 @@ object RobustThings extends App {
   // sort and export rankings
   val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
   val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({case(d, i) => (d._1.name, d._3, i+1) })
-
-  TrecRunWriter.writeRunFileFromTuple(new File("out/centroid"), Seq((queries.head._1+"", centroidRankings)))
-  TrecRunWriter.writeRunFileFromTuple(new File("out/sum"), Seq((queries.head._1+"", sumRankings)))
-
-//  println("centroids")
-//  centroidRankings.foreach(d => println(d._1.name, d._2))
-//  println("sum")
-//  sumRankings.foreach(d => println(d._1.name, d._3))
-//  println("sdm")
-//  collectionRankings.foreach(d => println(d.documentName, d.score))
-
+  TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId+"", centroidRankings)))
+  TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum-$queryId"), Seq((queryId+"", sumRankings)))
 
 }
