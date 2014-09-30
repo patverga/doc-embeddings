@@ -19,13 +19,16 @@ object DocReader
   def parseRobust(robustXml : String) : String =
   {
     val headline = if (robustXml.contains("<HEADLINE>")){
-      val headLineSection = robustXml.split("<HEADLINE>",2)(1)
-      headLineSection.split("</HEADLINE>",2)(0)}
-    else ""
-    val textSection = robustXml.split("<TEXT>",2)(1)
-    val text = textSection.split("</TEXT>",2)(0)
-    // combine headline and body, strip out remaining tags such as <P>
-    (headline + " " + text).replaceAll("<.*>","")
+        robustXml.split("<HEADLINE>",2)(1).split("</HEADLINE>",2)(0)
+    } else ""
+    val text = if (robustXml.contains("<TEXT>")){
+        robustXml.split("<TEXT>",2)(1).split("</TEXT>",2)(0)
+    } else ""
+    // combine headline and body
+    val combined = if (text != "") headline + " " + text
+      else robustXml
+    // strip out remaining tags such as <P>
+    combined.replaceAll("<.*>","").trim
 
   }
 

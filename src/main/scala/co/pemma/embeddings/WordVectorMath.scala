@@ -1,7 +1,7 @@
 package co.pemma.embeddings
 
 import cc.factorie.app.nlp.embeddings.TensorUtils
-import cc.factorie.la.DenseTensor1
+import cc.factorie.la.{Tensor, DenseTensor1}
 import org.apache.commons.lang3.text.WordUtils
 
 import scala.collection.mutable
@@ -97,7 +97,7 @@ class WordVectorMath(embedding : WordVectors){
     embedding_in
   }
 
-  def averageVectors(tensors : Iterable[DenseTensor1]) : DenseTensor1 ={
+  def averageVectors(tensors : Iterable[Tensor]) : DenseTensor1 ={
     val embedding_in = new DenseTensor1(D, 0)
     tensors.foreach(tensor => {
         embedding_in.+=(tensor)

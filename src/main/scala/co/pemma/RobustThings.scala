@@ -54,47 +54,50 @@ object RobustThings extends App {
 
   ////// done initializing ///////
 
-
-  // process the querytext, convert to galgo
-  val queryId = if (args.length > 0) args(0).toInt else queries.head._1
-  val queryText = queries.getOrElse(queryId, "")
-  println(s"Embedding reranking for query $queryId : $queryText")
-  val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(queryText)).queryStr
-
-  // get expansion and top docs for robust and wiki
-  val (collectionTerms, collectionRankings) = ExpansionModels.expansionTerms(robustSearcher, galagoQuery, 1000, 5, 20)
-  val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
-  val wikiEntities = wikiRankings.map(_.documentName)
-
-  // setup embeddings
-//  val vectorLocation = "./vectors/newswire-vectors.dat"
   val vectorLocation = "./vectors/serial-vectors"
   val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(vectorLocation))
-  val queryVector = wordVecs.phrase2Vec(queryText)
 
-  // grab the actual docs form galago
-  val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
-  val embeddingRankings = collectionDocs.zipWithIndex.map({case (doc, i) =>
-    println(s"Scoring document $i of ${collectionDocs.size}")
-    //    val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesFactorie(DocReader.parseRobust(doc.text))
-    val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesWindow(DocReader.parseRobust(doc.text), wordVecs)
-    // convert phrases/words to tensors
-    val docTensors = WordVectorUtils.words2Vectors(docStringArray, wordVecs).map(_._2)
-    // convert document to centroids
-    //    val docCentroids = Clusterer.documentCentroids(docStringArray, wordVecs, 10, 250)
-    val bestCentroidDistance = 0 //docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
-    val sumDistance = queryVector.cosineSimilarity(wordVecs.averageVectors(docTensors))
+  // process the querytext, convert to galgo
+  //  val queryId = if (args.length > 0) args(0).toInt else queries.head._1
+  //  val queryText = queries.getOrElse(queryId, "")
 
-    (doc.name, bestCentroidDistance, sumDistance)
-  })
+  for((queryId, queryText) <- queries)
+  {
+    println(s"Embedding reranking for query $queryId : $queryText")
+    val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(queryText)).queryStr
 
-  // sort and export rankings
-//  val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
-  val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({case(d, i) => (d._1, d._3, i+1) })
+    // get expansion and top docs for robust and wiki
+    val (collectionTerms, collectionRankings) = ExpansionModels.expansionTerms(robustSearcher, galagoQuery, 1000, 5, 20)
+    val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
+    val wikiEntities = wikiRankings.map(_.documentName)
 
-//  TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId+"", centroidRankings)))
-  TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum-$queryId"), Seq((queryId+"", sumRankings)))
+    // setup embeddings
+    //  val vectorLocation = "./vectors/newswire-vectors.dat"
+    val queryVector = wordVecs.averageVectors(WordVectorUtils.words2Vectors(WordVectorUtils.extractPhrasesWindow(queryText, wordVecs), wordVecs)) //wordVecs.phrase2Vec(queryText)
 
+    // grab the actual docs form galago
+    val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
+    val embeddingRankings = collectionDocs.zipWithIndex.map({ case (doc, i) =>
+      //    val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesFactorie(DocReader.parseRobust(doc.text))
+      val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesWindow(DocReader.parseRobust(doc.text), wordVecs)
+      // convert phrases/words to tensors
+      val docTensors = WordVectorUtils.words2Vectors(docStringArray, wordVecs)
+      // convert document to centroids
+//      val docCentroids = Clusterer.documentCentroids(docTensors, wordVecs, 10, 250)
+      val bestCentroidDistance = 0//docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
+      val sumDistance = queryVector.cosineSimilarity(wordVecs.averageVectors(docTensors))
 
+      (doc, bestCentroidDistance, sumDistance)
+    })
 
+    // sort and export rankings
+//    val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
+    val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({ case(d, i) => (d._1.name, d._3, i + 1)})
+    val sdmRankings = collectionRankings.map(d => (d.documentName, d.score, d.rank))
+
+//    TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId +"", centroidRankings)))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum-$queryId"), Seq((queryId + "", sumRankings)))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sdm-$queryId"), Seq((queryId + "", sdmRankings)))
+
+  }
 }
