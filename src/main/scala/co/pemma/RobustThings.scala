@@ -6,12 +6,13 @@ import cc.factorie.app.nlp.parse.OntonotesTransitionBasedParser
 import cc.factorie.app.nlp.phrase._
 import cc.factorie.app.nlp.pos.OntonotesForwardPosTagger
 import cc.factorie.app.nlp.{Document, DocumentAnnotatorPipeline, MutableDocumentAnnotatorMap}
-import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
+import co.pemma.embeddings.{WordVectorUtils, WordVectorMath, WordVectorsSerialManager}
 import edu.umass.ciir.ede.features.ExpansionModels
 import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import main.scala.co.pemma.Clusterer
+import org.lemurproject.galago.core.parse
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.core.tokenize.Tokenizer
 import org.lemurproject.galago.utility.Parameters
@@ -51,18 +52,6 @@ object RobustThings extends App {
     queries.toMap
   }
 
-  val nlpSteps = Seq(
-    OntonotesForwardPosTagger,
-    NoEmbeddingsConllStackedChainNer,
-    OntonotesTransitionBasedParser,
-    BILOUChainChunker,
-    NPChunkMentionFinder
-//    NounPhraseEntityTypeLabeler
-  )
-  val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
-  for (annotator <- nlpSteps) map += annotator
-  val pipeline = DocumentAnnotatorPipeline(map=map.toMap, prereqs=Nil, nlpSteps.flatMap(_.postAttrs))
-
   ////// done initializing ///////
 
 
@@ -85,35 +74,26 @@ object RobustThings extends App {
 
   // grab the actual docs form galago
   val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
-  val embeddingRankings = collectionDocs.map(doc =>
-  {
-    // use factorie for phrase chunking
-    val usedTokens = scala.collection.mutable.Set[Int]()
-    val facDoc = pipeline.process(new Document(DocReader.parseRobust(doc.text)))
-    val docString = for (phrase <- facDoc.attr[PhraseList] if !StopWords.containsWord(phrase.string))
-    yield {
-      phrase.tokens.foreach(usedTokens += _.position)
-      phrase.string
-    }
-
-    // collect phrases and tokens not in phrases
-    val docStringArray = docString ++ (for (token <- facDoc.tokens; str = token.string
-                              if !usedTokens.contains(token.position) &&
-                                !StopWords.containsWord(str.toLowerCase) &&
-                                str.size > 1) yield token.string)
-
+  val embeddingRankings = collectionDocs.zipWithIndex.map({case (doc, i) =>
+    println(s"Scoring document $i of ${collectionDocs.size}")
+    //    val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesFactorie(DocReader.parseRobust(doc.text))
+    val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesWindow(DocReader.parseRobust(doc.text), wordVecs)
+    // convert phrases/words to tensors
+    val docTensors = WordVectorUtils.words2Vectors(docStringArray, wordVecs).map(_._2)
     // convert document to centroids
-//    val docCentroids = Clusterer.documentCentroids(docStringArray, wordVecs, 10, 250)
+    //    val docCentroids = Clusterer.documentCentroids(docStringArray, wordVecs, 10, 250)
     val bestCentroidDistance = 0 //docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
-    val sumDistance = queryVector.cosineSimilarity(wordVecs.sumPhrases(docStringArray))
+    val sumDistance = queryVector.cosineSimilarity(wordVecs.averageVectors(docTensors))
 
     (doc, bestCentroidDistance, sumDistance)
   })
 
   // sort and export rankings
-//  val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
+//  val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, fud._2, i+1) })
   val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({case(d, i) => (d._1.name, d._3, i+1) })
 //  TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId+"", centroidRankings)))
   TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum-$queryId"), Seq((queryId+"", sumRankings)))
+
+
 
 }

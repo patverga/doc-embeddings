@@ -24,8 +24,8 @@ object DocReader
     else ""
     val textSection = robustXml.split("<TEXT>",2)(1)
     val text = textSection.split("</TEXT>",2)(0)
-    // combine headline and body
-    headline + " " + text
+    // combine headline and body, strip out remaining tags such as <P>
+    (headline + " " + text).replaceAll("<.*>","")
 
   }
 

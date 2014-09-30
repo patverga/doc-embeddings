@@ -53,19 +53,20 @@ class WordVectorMath(embedding : WordVectors){
   : mutable.PriorityQueue[(String, Double)] = {
     val pq = new mutable.PriorityQueue[(String, Double)]()(dis())
     // find knn to the resulting vector
-    var offset = 0
-    for (vocab <- Seq(unigrams, bigrams, trigrams)) {
-      for (i <- 0 until vocab.length) if (words.size != 1 || !words(0).equals(vocab(i))) {
-        val embedding_out = weights(i + offset)
-        val score = TensorUtils.cosineDistance(embedding_in, embedding_out)
-        if (i < k) pq.enqueue(vocab(i) -> score)
-        else if (score > pq.head._2) {
-          // if the score is greater the min, then add to the heap
-          pq.dequeue()
-          pq.enqueue(vocab(i) -> score)
+    for (vocab <- Seq(unigrams.iterator, bigrams.iterator, trigrams.iterator)) {
+      while (vocab.hasNext) {
+        val (word, i) = vocab.next()
+        if (words.size != 1 || !words(0).equals(word)) {
+          val embedding_out = weights(i)
+          val score = TensorUtils.cosineDistance(embedding_in, embedding_out)
+          if (pq.size < k) pq.enqueue(word -> score)
+          else if (score > pq.head._2) {
+            // if the score is greater the min, then add to the heap
+            pq.dequeue()
+            pq.enqueue(word -> score)
+          }
         }
       }
-      offset += vocab.length
     }
     pq
   }
@@ -93,6 +94,15 @@ class WordVectorMath(embedding : WordVectors){
       }
     })
     embedding_in./=(tensorsUsed)
+    embedding_in
+  }
+
+  def averageVectors(tensors : Iterable[DenseTensor1]) : DenseTensor1 ={
+    val embedding_in = new DenseTensor1(D, 0)
+    tensors.foreach(tensor => {
+        embedding_in.+=(tensor)
+    })
+    embedding_in./=(tensors.size)
     embedding_in
   }
 
@@ -128,23 +138,16 @@ class WordVectorMath(embedding : WordVectors){
   }
 
   private def getID(word: String): Int = {
-    var offset = 0
     val underscoreCount = word.length() - word.replace("_", "").length()
     val vocab = if (underscoreCount == 0)
       unigrams
-    else if (underscoreCount == 1) {
-      offset = unigrams.length
+    else if (underscoreCount == 1)
       bigrams
-    }
-    else if (underscoreCount == 2) {
-      offset = unigrams.length + bigrams.length
+    else if (underscoreCount == 2)
       trigrams
-    }
     else // vocab only supports up to trigrams
       return -1
-    for (i <- 0 until vocab.length) if (vocab(i).equals(word))
-      return i+offset
-    -1
+    vocab.getOrElse(word, -1)
   }
 }
 
@@ -155,7 +158,7 @@ object TestDistance extends App{
   val inLocation = "./vectors/google-vectors"
   val outLocation = "./vectors/serial-vectors"
 
-//  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
+  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
   val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(outLocation))
 //  println(distance.phrase2Vec("bill clinton"))
   distance.interactiveNearestNeighbor()
