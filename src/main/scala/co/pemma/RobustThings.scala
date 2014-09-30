@@ -78,8 +78,8 @@ object RobustThings extends App {
   val wikiEntities = wikiRankings.map(_.documentName)
 
   // setup embeddings
-  val vectorLocation = "./vectors/newswire-vectors.dat"
-//  val vectorLocation = "./vectors/serial-vectors"
+//  val vectorLocation = "./vectors/newswire-vectors.dat"
+  val vectorLocation = "./vectors/serial-vectors"
   val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(vectorLocation))
   val queryVector = wordVecs.phrase2Vec(queryText)
 
@@ -103,17 +103,17 @@ object RobustThings extends App {
                                 str.size > 1) yield token.string)
 
     // convert document to centroids
-    val docCentroids = Clusterer.documentCentroids(docStringArray, wordVecs, 10, 250)
-    val bestCentroidDistance = docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
+//    val docCentroids = Clusterer.documentCentroids(docStringArray, wordVecs, 10, 250)
+    val bestCentroidDistance = 0 //docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
     val sumDistance = queryVector.cosineSimilarity(wordVecs.sumPhrases(docStringArray))
 
     (doc, bestCentroidDistance, sumDistance)
   })
 
   // sort and export rankings
-  val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
+//  val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
   val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({case(d, i) => (d._1.name, d._3, i+1) })
-  TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId+"", centroidRankings)))
+//  TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId+"", centroidRankings)))
   TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum-$queryId"), Seq((queryId+"", sumRankings)))
 
 }

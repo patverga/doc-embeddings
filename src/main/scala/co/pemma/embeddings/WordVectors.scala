@@ -5,6 +5,7 @@ import java.io.{ObjectInputStream, FileInputStream, ObjectOutputStream, FileOutp
 import cc.factorie.app.nlp.embeddings.{SkipGramNegSamplingEmbeddingModel, EmbeddingOpts}
 import cc.factorie.la.DenseTensor1
 
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 /**
@@ -28,9 +29,9 @@ class WordVectors extends Serializable
     D = details(1)
     println("# words : %d , # size : %d".format(V, D))
     weights = new Array[DenseTensor1](V)
-    val uni = Seq[(String, DenseTensor1)]()
-    val bi = Seq[(String, DenseTensor1)]()
-    val tri = Seq[(String, DenseTensor1)]()
+    var uni = new ListBuffer[(String, DenseTensor1)]()
+    var bi = new ListBuffer[(String, DenseTensor1)]()
+    var tri = new ListBuffer[(String, DenseTensor1)]()
     for (v <- 0 until V)
     {
       val line = lineItr.next().stripLineEnd.split(' ')
@@ -42,11 +43,11 @@ class WordVectors extends Serializable
 
       val underscoreCount = word.length() - word.replace("_", "").length()
       if (underscoreCount == 0)
-        uni :+ (word, weight)
+        uni += Tuple2(word, weight)
       else if (underscoreCount == 1)
-        bi :+ (word, weight)
+        bi += Tuple2(word, weight)
       else if (underscoreCount == 2)
-        tri :+ (word, weight)
+        tri += Tuple2(word, weight)
     }
     unigrams = uni.zipWithIndex.map({case((wrd, wt), idx) => weights(idx) = wt;  wrd }).toArray
     bigrams = bi.zipWithIndex.map({case((wrd, wt), idx) => weights(idx + unigrams.length) = wt;  wrd }).toArray

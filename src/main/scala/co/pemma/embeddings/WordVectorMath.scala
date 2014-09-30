@@ -55,7 +55,7 @@ class WordVectorMath(embedding : WordVectors){
     // find knn to the resulting vector
     var offset = 0
     for (vocab <- Seq(unigrams, bigrams, trigrams)) {
-      for (i <- 0 until V) if (words.size != 1 || !words(0).equals(vocab(i))) {
+      for (i <- 0 until vocab.length) if (words.size != 1 || !words(0).equals(vocab(i))) {
         val embedding_out = weights(i + offset)
         val score = TensorUtils.cosineDistance(embedding_in, embedding_out)
         if (i < k) pq.enqueue(vocab(i) -> score)
@@ -82,7 +82,7 @@ class WordVectorMath(embedding : WordVectors){
   }
 
   def sumPhrases(words: Iterable[String]) : DenseTensor1 = {
-        val embedding_in = new DenseTensor1(D, 0)
+    val embedding_in = new DenseTensor1(D, 0)
     var tensorsUsed = 0
     words.foreach(w => {
       val tensor = phrase2Vec(w)
@@ -126,21 +126,36 @@ class WordVectorMath(embedding : WordVectors){
   private def dis() = new Ordering[(String, Double)] {
     def compare(a: (String, Double), b: (String, Double)) = -a._2.compare(b._2)
   }
+
   private def getID(word: String): Int = {
     var offset = 0
-    for (vocab <- Seq(unigrams, bigrams, trigrams)) {
-      for (i <- 0 until vocab.length) if (vocab(i).equals(word))
-        return i+offset
-      offset += vocab.length
+    val underscoreCount = word.length() - word.replace("_", "").length()
+    val vocab = if (underscoreCount == 0)
+      unigrams
+    else if (underscoreCount == 1) {
+      offset = unigrams.length
+      bigrams
     }
+    else if (underscoreCount == 2) {
+      offset = unigrams.length + bigrams.length
+      trigrams
+    }
+    else // vocab only supports up to trigrams
+      return -1
+    for (i <- 0 until vocab.length) if (vocab(i).equals(word))
+      return i+offset
     -1
   }
 }
 
 object TestDistance extends App{
-  val inLocation = "./vectors/newswire-vectors.txt"
-  val outLocation = "./vectors/newswire-vectors.dat"
-  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
+//  val inLocation = "./vectors/newswire-vectors.txt"
+//  val outLocation = "./vectors/newswire-vectors.dat"
+
+  val inLocation = "./vectors/google-vectors"
+  val outLocation = "./vectors/serial-vectors"
+
+//  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
   val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(outLocation))
 //  println(distance.phrase2Vec("bill clinton"))
   distance.interactiveNearestNeighbor()
