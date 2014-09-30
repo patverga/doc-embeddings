@@ -5,8 +5,12 @@ import java.io.{ObjectInputStream, FileInputStream, ObjectOutputStream, FileOutp
 import cc.factorie.app.nlp.embeddings.{SkipGramNegSamplingEmbeddingModel, EmbeddingOpts}
 import cc.factorie.la.DenseTensor1
 
+
+import collection.mutable
+import collection.mutable._
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
+import scala.collection.JavaConversions.mapAsScalaMap
 
 /**
  * Created by pat on 9/26/14.
@@ -14,9 +18,9 @@ import scala.io.Source
 class WordVectors extends Serializable
 {
   var threshold = 0
-  var unigrams = Array[String]()
-  var bigrams = Array[String]()
-  var trigrams = Array[String]()
+  var unigrams = mutable.Map[String, Int]()
+  var bigrams = mutable.Map[String, Int]()
+  var trigrams = mutable.Map[String, Int]()
   var weights = Array[DenseTensor1]()
   var D = 0
   var V = 0
@@ -49,9 +53,12 @@ class WordVectors extends Serializable
       else if (underscoreCount == 2)
         tri += Tuple2(word, weight)
     }
-    unigrams = uni.zipWithIndex.map({case((wrd, wt), idx) => weights(idx) = wt;  wrd }).toArray
-    bigrams = bi.zipWithIndex.map({case((wrd, wt), idx) => weights(idx + unigrams.length) = wt;  wrd }).toArray
-    trigrams = tri.zipWithIndex.map({case((wrd, wt), idx) => weights(idx + unigrams.length + bigrams.length) = wt;  wrd }).toArray
+    unigrams = new java.util.HashMap[String, Int]()
+    uni.zipWithIndex.foreach({case((wrd, wt), idx) => weights(idx) = wt; unigrams.put(wrd, idx) })
+    bigrams = new java.util.HashMap[String, Int]()
+    bi.zipWithIndex.map({case((wrd, wt), idx) => val i = idx+unigrams.size; weights(i) = wt;  bigrams.put(wrd,i) }).toArray
+    trigrams = new java.util.HashMap[String, Int]()
+    tri.zipWithIndex.map({case((wrd, wt), idx) => val i = idx+unigrams.size+bigrams.size; weights(i) = wt;  trigrams.put(wrd,i) })
     println("loaded vocab and their embeddings")
   }
 }

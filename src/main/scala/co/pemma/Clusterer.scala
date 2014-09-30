@@ -5,7 +5,7 @@ import java.util
 import cc.factorie.app.nlp
 import cc.factorie.app.nlp.embeddings.{EmbeddingDistance, EmbeddingOpts, SkipGramNegSamplingEmbeddingModel}
 import cc.factorie.la.DenseTensor1
-import co.pemma.embeddings.WordVectorMath
+import co.pemma.embeddings.{WordVectorUtils, WordVectorMath}
 import weka.clusterers.SimpleKMeans
 import weka.core.{Attribute, DenseInstance, Instances}
 
@@ -24,12 +24,7 @@ object Clusterer  extends  App
   def documentCentroids(doc : Iterable[String], wordVectors : WordVectorMath, K : Int, iterations : Int)
   : Seq[DenseTensor1] =
   {
-    // split the doc into words
-    val words = doc.filter(w => !nlp.lexicon.StopWords.containsWord(w)  && w.size > 1)
-    // turn each word into an embedding vector
-    print("Converting fac vectors to weka instances...")
-    val wordTensors = for ( w <- words ; wv = wordVectors.phrase2Vec(w); if wv != null)
-    yield (w, wv)
+    val wordTensors: Iterable[(String, DenseTensor1)] = WordVectorUtils.words2Vectors(doc, wordVectors)
 
     val kmeans = clusterDocument(wordTensors, K, iterations)
     println("converting weka centroids to fac vectors..")
