@@ -1,24 +1,17 @@
 package co.pemma
 
-import cc.factorie.app.nlp.lexicon.StopWords
-import cc.factorie.app.nlp.ner.NoEmbeddingsConllStackedChainNer
-import cc.factorie.app.nlp.parse.OntonotesTransitionBasedParser
-import cc.factorie.app.nlp.phrase._
-import cc.factorie.app.nlp.pos.OntonotesForwardPosTagger
-import cc.factorie.app.nlp.{DocumentAnnotatorPipeline, MutableDocumentAnnotatorMap}
+import java.io.File
+
 import cc.factorie.la.DenseTensor1
-import co.pemma.embeddings.{WordVectorUtils, WordVectorMath, WordVectorsSerialManager}
+import co.pemma.embeddings.{WordVectorMath, WordVectorUtils, WordVectorsSerialManager}
 import edu.umass.ciir.ede.features.ExpansionModels
 import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
-import main.scala.co.pemma.Clusterer
-import org.lemurproject.galago.core.parse
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.core.tokenize.Tokenizer
 import org.lemurproject.galago.utility.Parameters
 
-import java.io.File
 import scala.collection.JavaConversions._
 
 /**
@@ -55,6 +48,7 @@ object RobustThings extends App {
 
   ////// done initializing ///////
 
+  //  val vectorLocation = "./vectors/newswire-vectors.dat"
   val vectorLocation = "./vectors/serial-vectors"
   val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(vectorLocation))
 
@@ -74,12 +68,16 @@ object RobustThings extends App {
     val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
 
     // setup embeddings
-    //  val vectorLocation = "./vectors/newswire-vectors.dat"
-    val queryTensor = wordVecs.averageVectors(WordVectorUtils.words2Vectors(WordVectorUtils.extractPhrasesWindow(queryText, wordVecs), wordVecs)) //wordVecs.phrase2Vec(queryText)
+    val queryPhrases = WordVectorUtils.extractPhrasesWindow(queryText, wordVecs)
+    val queryTensor = wordVecs.averageVectors(WordVectorUtils.words2Vectors(queryPhrases, wordVecs))
 
-//    sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
-
+    sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
     bestMatchedSentences(queryId, collectionDocs, queryTensor)
+
+    // export baseline results
+    val sdmRankings = collectionRankings.map(d => (d.documentName, d.score, d.rank))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sdm/$queryId"), Seq((queryId + "", sdmRankings)))
+
   }
 
   /** given a pool of documents, rank by embedding sum and best cluster match - export results to file
@@ -90,26 +88,25 @@ object RobustThings extends App {
   def sumAndClusterDocs(queryId: Int = 0, collectionRankings: Seq[ScoredDocument], collectionDocs : Seq[org.lemurproject.galago.core.parse.Document], queryVector : DenseTensor1) {
     // grab the actual docs form galago
     val embeddingRankings = collectionDocs.zipWithIndex.map({ case (doc, i) =>
-      //    val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesFactorie(DocReader.parseRobust(doc.text))
-      val docStringArray: Iterable[String] = WordVectorUtils.extractPhrasesWindow(DocReader.parseRobust(doc.text), wordVecs)
-      // convert phrases/words to tensors
-      val docTensors = WordVectorUtils.words2Vectors(docStringArray, wordVecs)
+      val docPhrases = WordVectorUtils.extractPhrasesWindow(DocReader.parseRobust(doc.text), wordVecs)
+      val docTensors = WordVectorUtils.words2Vectors(docPhrases, wordVecs)
+
+      // get score from summing words in doc
+      val avgDocTensor = wordVecs.averageVectors(docTensors)
+      val docSumSimilarity = queryVector.cosineSimilarity(avgDocTensor)
+
       // convert document to centroids
       //      val docCentroids = Clusterer.documentCentroids(docTensors, wordVecs, 10, 250)
-      val bestCentroidDistance = 0 //docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
-    val sumDistance = queryVector.cosineSimilarity(wordVecs.averageVectors(docTensors))
+      val bestCentroidSimilarity = 0 //docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
 
-      (doc, bestCentroidDistance, sumDistance)
+      (doc, bestCentroidSimilarity, docSumSimilarity)
     })
 
     // sort and export rankings
-    //    val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
+//    val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
     val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({ case (d, i) => (d._1.name, d._3, i + 1)})
-    val sdmRankings = collectionRankings.map(d => (d.documentName, d.score, d.rank))
-
-//    TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid-$queryId"), Seq((queryId + "", centroidRankings)))
-    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum-$queryId"), Seq((queryId + "", sumRankings)))
-    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sdm-$queryId"), Seq((queryId + "", sdmRankings)))
+//    TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid/$queryId"), Seq((queryId + "", centroidRankings)))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum/$queryId"), Seq((queryId + "", sumRankings)))
   }
 
   /*
@@ -140,7 +137,7 @@ object RobustThings extends App {
     }).sortBy(-_._2).zipWithIndex.map({ case (d, i) => (d._1.name, d._2, i + 1)})
 
     // export rankings in trec format
-    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sentence-$queryId"), Seq((queryId + "", sentenceRankings)))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sentence/$queryId"), Seq((queryId + "", sentenceRankings)))
   }
 
 }

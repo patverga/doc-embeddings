@@ -28,7 +28,7 @@ object DocReader
     val combined = if (text != "") headline + " " + text
       else robustXml
     // strip out remaining tags such as <P>
-    combined.replaceAll("<.*>","").trim
+    combined.replaceAll("<.*>","").replaceAll("\\p{P}", "").trim
 
   }
 

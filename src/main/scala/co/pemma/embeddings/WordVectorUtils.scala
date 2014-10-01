@@ -35,10 +35,10 @@ object WordVectorUtils {
     while (i < wordArray.length)
     {
       // check trigram 1-2-3
-      val tri = if (i==0 && i+2 < wordArray.length){
-        val triResult = s"${wordArray(i)}_${wordArray(i+1)}_${wordArray(i+2)}"
-        checkPhraseVectorExists(triResult, wordVectors.trigrams) } else null
-      if (tri != null) {phraseList += tri; i+=3 }
+      val triResult = if (i==0 && i+2 < wordArray.length){
+        val trigram = s"${wordArray(i)}_${wordArray(i+1)}_${wordArray(i+2)}"
+        checkPhraseVectorExists(trigram, wordVectors.trigrams) } else null
+      if (triResult != null) {phraseList += triResult; i+=3 }
       else 
       {
         // check trigram 2-3-4
@@ -54,8 +54,8 @@ object WordVectorUtils {
             val bigram = s"${wordArray(i)}_${wordArray(i+1)}"
             checkPhraseVectorExists(bigram, wordVectors.bigrams)
           } else null
-          if (biResult != null){ phraseList += biResult; i+=1 }
-          else phraseList += wordArray(i); i+= 1
+          if (biResult != null){ phraseList += biResult; i+=2 }
+          else { phraseList += wordArray(i); i+=1 }
         }
       }
     }
@@ -64,15 +64,21 @@ object WordVectorUtils {
     phraseList
   }
 
-  def checkPhraseVectorExists(trigram: String, wordVectors :  mutable.Map[String, Int]) : String = {
+  def checkPhraseVectorExists(phrase: String, wordVectors :  mutable.Map[String, Int]) : String = {
     // try
-    if (wordVectors.contains(trigram))
-      trigram
-    else if (wordVectors.contains(WordUtils.capitalizeFully(trigram, '_')))
-      WordUtils.capitalizeFully(trigram, '_')
-    else if (wordVectors.contains(trigram.toLowerCase))
-      trigram.toLowerCase
-    else null
+    if (wordVectors.contains(phrase))
+      phrase
+    else {
+      val cap = WordUtils.capitalizeFully(phrase, '_')
+      if (wordVectors.contains(cap))
+        cap
+      else {
+        val lower = phrase.toLowerCase
+        if (wordVectors.contains(lower))
+          lower
+        else null
+      }
+    }
   }
 
   def words2Vectors(doc: Iterable[String], wordVectors: WordVectorMath, keepStopWords : Boolean = false):
