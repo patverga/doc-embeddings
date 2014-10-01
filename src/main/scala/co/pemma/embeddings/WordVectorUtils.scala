@@ -19,38 +19,6 @@ import scala.collection.mutable.ListBuffer
  */
 object WordVectorUtils {
 
-  // initialize pipeline
-//  val nlpSteps = Seq(
-//    OntonotesForwardPosTagger,
-//    NoEmbeddingsConllStackedChainNer,
-//    OntonotesTransitionBasedParser,
-//    BILOUChainChunker,
-//    NPChunkMentionFinder
-//    //    NounPhraseEntityTypeLabeler
-//  )
-//  val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
-//  for (annotator <- nlpSteps) map += annotator
-//  val pipeline = DocumentAnnotatorPipeline(map=map.toMap, prereqs=Nil, nlpSteps.flatMap(_.postAttrs))
-
-  //// DONE INITIALIZING /////
-
-//  def extractPhrasesFactorie(doc: parse.Document): IndexedSeq[String] = {
-//    // use factorie for phrase chunking
-//    val usedTokens = scala.collection.mutable.Set[Int]()
-//    val facDoc = pipeline.process(new Document(DocReader.parseRobust(doc.text)))
-//    val docString = for (phrase <- facDoc.attr[PhraseList] if !StopWords.containsWord(phrase.string))
-//    yield {
-//      phrase.tokens.foreach(usedTokens += _.position)
-//      phrase.string
-//    }
-//
-//    // collect phrases and tokens not in phrases
-//    docString ++ (for (token <- facDoc.tokens; str = token.string
-//                       if !usedTokens.contains(token.position) &&
-//                         !StopWords.containsWord(str.toLowerCase) &&
-//                         str.size > 1) yield token.string)
-//  }
-
   /**
    * Look over sliding window of 4 words at a time to extract trigram bigram and unigram phrases
    * contained in our vector model
