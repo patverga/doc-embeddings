@@ -137,7 +137,7 @@ object RobustThings extends App {
 
       (doc, sentSimilarity.map(_._1).sum / topK )
       // sort results, put in correct form for output
-    }).sortBy(_._2).zipWithIndex.map({ case (d, i) => (d._1.name, d._2, i + 1)})
+    }).sortBy(-_._2).zipWithIndex.map({ case (d, i) => (d._1.name, d._2, i + 1)})
 
     // export rankings in trec format
     TrecRunWriter.writeRunFileFromTuple(new File(s"out/sentence-$queryId"), Seq((queryId + "", sentenceRankings)))
