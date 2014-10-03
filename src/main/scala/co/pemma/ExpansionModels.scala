@@ -4,7 +4,7 @@ import edu.umass.ciir.strepsi.ciirshared.LanguageModel
 import edu.umass.ciir.strepsi.galagocompat.GalagoTag
 import edu.umass.ciir.strepsi.{LogTools, StopWordList, TextNormalizer}
 import edu.umass.ciir.strepsimur.galago.compat.CompatConverters._
-import edu.umass.ciir.strepsimur.galago.{GalagoSearcher, DocumentPullException, DocumentPuller}
+import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoSearcher, DocumentPullException, DocumentPuller}
 import org.lemurproject.galago.core.parse.Document
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.utility.Parameters
@@ -90,41 +90,6 @@ object ExpansionModels {
     topTerms
 
   }
-
-  def relevanceModel[DocumentName,Term](baseRanking: Seq[DocumentName],
-                                        normalizedDocProbs: Map[DocumentName, Double],
-                                        termVectors: Map[DocumentName, Seq[Term]]): Seq[(Term, Double)] = {
-
-    // compute partial probabilities across all documents
-    val probs = for (doc <- baseRanking) yield {
-      val termCounts = termVectors(doc).groupBy {
-        case s => s
-      }.mapValues(_.size)
-      val docLength = termCounts.map(_._2).sum
-      val termProbs = termCounts.map(t => {
-        val termProb = t._2 / docLength.toDouble
-        val docProb = normalizedDocProbs(doc)
-        val rmWeight = termProb * docProb
-        t._1 -> rmWeight
-      })
-      termProbs
-    }
-
-    // aggregate probabilities by term
-    val flatProbs = probs.flatten
-    val probsByTerm = flatProbs.groupBy(_._1)
-    val termProbs = for ((term, termCounts) <- probsByTerm) yield {
-      val probSum = termCounts.map(_._2).sum
-      term -> probSum
-    }
-
-    // sort for convenience
-    val topTerms = termProbs.toList.sortBy(-_._2)
-    topTerms
-  }
-
-
-
   def extractTopTerms(terms: Seq[(String, Double)], numTerms: Int) = {
     StopWordList.removeStopWord("us")
     val topTerms =
@@ -160,7 +125,20 @@ object ExpansionModels {
 
   def expansionTerms(galagoSearcher: GalagoSearcher, galagoQuery: String, numDocs: Int = 1000, expansionDocs : Int = 5, numTerms: Int = 20, collection: String = "robust")
   : (Seq[(String, Double)], Seq[ScoredDocument]) = {
-    val params = {
+    val params = getCollectionParams(collection)
+    val rankings = galagoSearcher.retrieveScoredDocuments(galagoQuery, Some(params), numDocs)
+    (ExpansionModels.lce(rankings take expansionDocs, galagoSearcher, numTerms, collection), rankings)
+  }
+
+  def runExpansionQuery(galagoQuery : String, expansionTerms :Seq[(String, Double)], collection:String, searcher : GalagoSearcher, numResults : Int = 1000)
+  : Seq[ScoredDocument] = {
+    val params = getCollectionParams(collection)
+    val expandedQuery = GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(expansionTerms take 20), 1 - 0.55)))
+    println("running query: " + expandedQuery)
+    searcher.retrieveScoredDocuments(expandedQuery, Some(params), numResults)
+  }
+
+  def getCollectionParams(collection : String) : Parameters ={
       val p = new Parameters()
       if (collection == "robust") {
         p.set("mu", 1269.0)
@@ -180,9 +158,6 @@ object ExpansionModels {
         p.set("deltaReady", true)
         p
       }
+    p
     }
-    val rankings = galagoSearcher.retrieveScoredDocuments(galagoQuery, Some(params), numDocs)
-    (ExpansionModels.lce(rankings take expansionDocs, galagoSearcher, numTerms, collection), rankings)
-  }
-
 }

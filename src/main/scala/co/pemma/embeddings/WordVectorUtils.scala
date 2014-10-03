@@ -91,4 +91,9 @@ object WordVectorUtils {
 //    yield (w, wv)
     yield wv
   }
+
+  def cleanString(inputStr : String): String =
+  {
+    inputStr.replaceAll("_", " ").replaceAll("\\p{P}|#", "")
+  }
 }

@@ -7,7 +7,8 @@ import co.pemma.embeddings.{WordVectorMath, WordVectorUtils, WordVectorsSerialMa
 import edu.umass.ciir.ede.features.ExpansionModels
 import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
-import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
+import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
+import main.scala.co.pemma.Clusterer
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.core.tokenize.Tokenizer
 import org.lemurproject.galago.utility.Parameters
@@ -63,21 +64,47 @@ object RobustThings extends App {
 
     // get expansion and top docs for robust and wiki
     val (collectionTerms, collectionRankings) = ExpansionModels.expansionTerms(robustSearcher, galagoQuery, 1000, 5, 20)
-    val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
-    val wikiEntities = wikiRankings.map(_.documentName)
     val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
 
     // setup embeddings
     val queryPhrases = WordVectorUtils.extractPhrasesWindow(queryText, wordVecs)
     val queryTensor = wordVecs.averageVectors(WordVectorUtils.words2Vectors(queryPhrases, wordVecs))
 
-    sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
-    bestMatchedSentences(queryId, collectionDocs, queryTensor)
+    baseLineResults(queryId, galagoQuery, collectionRankings, collectionTerms, queryTensor, queryText)
+//    sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
+//    bestMatchedSentences(queryId, collectionDocs, queryTensor)
+
+  }
+
+  def baseLineResults(queryId: Int = 0, galagoQuery : String, collectionRankings: Seq[ScoredDocument],
+                      collectionTerms : Seq[(String, Double)], queryTensor : DenseTensor1, queryText: String): Unit =
+  {
+    val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
+    val wikiEntities = wikiRankings.map(_.documentName)
+    val embeddingTerms = wordVecs.nearestNeighbors(Array(queryText), queryTensor, 20).toSeq.map(w => (WordVectorUtils.cleanString(w._1),w._2))
+    // find top knn embeddings for each rm term and weight it by embedding distance * expansion value
+    val rmEmbedExpansionTerms = collectionTerms.flatMap(term => {
+      val termTensor = wordVecs.word2Vec(term._1)
+      if (termTensor != null) Seq(term) ++ wordVecs.nearestNeighbors(Array(term._1), termTensor, 3).map(n => (WordVectorUtils.cleanString(n._1), n._2*term._2))
+      else Seq(term)
+    })
+
+    val wikiExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, wikiTerms, "robust", robustSearcher)
+    val rmExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, collectionTerms, "robust", robustSearcher)
+    val embeddingExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, embeddingTerms, "robust", robustSearcher)
+    val rmEmbedExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, rmEmbedExpansionTerms, "robust", robustSearcher)
 
     // export baseline results
-    val sdmRankings = collectionRankings.map(d => (d.documentName, d.score, d.rank))
-    TrecRunWriter.writeRunFileFromTuple(new File(s"out/sdm/$queryId"), Seq((queryId + "", sdmRankings)))
+    formatAndExportRankings(queryId, collectionRankings, "sdm")
+    formatAndExportRankings(queryId, wikiExpansionRankings, "wiki-expansion")
+    formatAndExportRankings(queryId, rmExpansionRankings, "rm-expansion")
+    formatAndExportRankings(queryId, embeddingExpansionRankings, "embed-expansion")
+    formatAndExportRankings(queryId, rmEmbedExpansionRankings, "rm-embed-expansion")
+  }
 
+  def formatAndExportRankings(queryId: Int = 0,  rankings: Seq[ScoredDocument], outputDir : String): Unit ={
+    val rankingsFormated = rankings.map(d => (d.documentName, d.score, d.rank))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/$outputDir/$queryId"), Seq((queryId + "", rankingsFormated)))
   }
 
   /** given a pool of documents, rank by embedding sum and best cluster match - export results to file
@@ -96,8 +123,8 @@ object RobustThings extends App {
       val docSumSimilarity = queryVector.cosineSimilarity(avgDocTensor)
 
       // convert document to centroids
-      //      val docCentroids = Clusterer.documentCentroids(docTensors, wordVecs, 10, 250)
-      val bestCentroidSimilarity = 0 //docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
+      val docCentroids = Clusterer.documentCentroids(docTensors, wordVecs, 10, 250)
+      val bestCentroidSimilarity = docCentroids.map(centroid => queryVector.cosineSimilarity(centroid)).max
 
       (doc, bestCentroidSimilarity, docSumSimilarity)
     })
@@ -114,7 +141,7 @@ object RobustThings extends App {
    */
   def bestMatchedSentences(queryId: Int, documents: Seq[org.lemurproject.galago.core.parse.Document], queryTensor: DenseTensor1)
   {
-    val topK = 10
+    val topK = 3
 
     val sentenceRankings = documents.map(doc =>
     {
