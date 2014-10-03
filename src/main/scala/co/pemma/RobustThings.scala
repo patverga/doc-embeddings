@@ -71,8 +71,8 @@ object RobustThings extends App {
     val queryTensor = wordVecs.averageVectors(WordVectorUtils.words2Vectors(queryPhrases, wordVecs))
 
     baseLineResults(queryId, galagoQuery, collectionRankings, collectionTerms, queryTensor, queryText)
-//    sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
-//    bestMatchedSentences(queryId, collectionDocs, queryTensor)
+    sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
+    bestMatchedSentences(queryId, collectionDocs, queryTensor)
 
   }
 
@@ -130,9 +130,9 @@ object RobustThings extends App {
     })
 
     // sort and export rankings
-//    val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
+    val centroidRankings = embeddingRankings.sortBy(-_._2).zipWithIndex.map({case(d, i) => (d._1.name, d._2, i+1) })
     val sumRankings = embeddingRankings.sortBy(-_._3).zipWithIndex.map({ case (d, i) => (d._1.name, d._3, i + 1)})
-//    TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid/$queryId"), Seq((queryId + "", centroidRankings)))
+    TrecRunWriter.writeRunFileFromTuple(new File(s"out/centroid/$queryId"), Seq((queryId + "", centroidRankings)))
     TrecRunWriter.writeRunFileFromTuple(new File(s"out/sum/$queryId"), Seq((queryId + "", sumRankings)))
   }
 
