@@ -11,11 +11,15 @@ object BookNer extends App
   val bookYear = loadMap("books/book-year-key")
   val bookDir = loadMap("books/book-ner-dir-key")
 
-  bookYear.zipWithIndex.foreach{case((book, year),i) =>
+  var i = 0
+  val total = bookYear.size.toDouble
+  bookYear.foreach{case(book, year) =>
     val inFile = bookDir.getOrElse(book, null)
+    if ((i+1) % 1000 == 0) println((i+1.0)/total)
+    i += 1
     if (inFile != null){
       val outFile = s"books/$year/$book"
-      println(inFile, outFile)
+//      println(inFile, outFile)
       loadBookFromOwpl(inFile, outFile)
     }
   }
