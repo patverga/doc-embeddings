@@ -18,9 +18,9 @@ object BookNer extends App
     if ((i+1) % 1000 == 0) println((i+1.0)/total)
     i += 1
     if (inFile != null){
-      val outFile = s"books/$year/$book"
+      val outFile = s"books/$year/"
 //      println(inFile, outFile)
-      loadBookFromOwpl(inFile, outFile)
+      loadBookFromOwpl(inFile, outFile, book)
     }
   }
 
@@ -37,7 +37,7 @@ object BookNer extends App
   }
 
 
-  def loadBookFromOwpl(inFile : String, outFile:String): Unit =
+  def loadBookFromOwpl(inFile : String, outFile : String, book : String): Unit =
   {
     val source = scala.io.Source.fromFile(inFile)
     val lines = source.getLines()
@@ -45,7 +45,7 @@ object BookNer extends App
     // export the books into date directories
     val file = new File(outFile)
     file.mkdirs()
-    val writer = new PrintWriter(new BufferedWriter(new FileWriter(file, true)))
+    val writer = new PrintWriter(new BufferedWriter(new FileWriter(outFile+book, true)))
     var sentence = new StringBuilder
     while (lines.hasNext)
     {
