@@ -51,7 +51,7 @@ object RobustThings extends App {
 
   //  val vectorLocation = "./vectors/newswire-vectors.dat"
   val vectorLocation = "./vectors/serial-vectors"
-  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserialize(vectorLocation))
+  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(vectorLocation))
 
   // process the querytext, convert to galgo
   //  val queryId = if (args.length > 0) args(0).toInt else queries.head._1

@@ -159,7 +159,7 @@ object TestDistance extends App{
 //  val outLocation = "./vectors/serial-vectors"
 
   WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
-  val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(outLocation))
+  val distance = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(outLocation))
 //  println(distance.phrase2Vec("bill clinton"))
   distance.interactiveNearestNeighbor()
 

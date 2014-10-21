@@ -3,7 +3,7 @@ package co.pemma.embeddings
 import java.io.{ObjectInputStream, FileInputStream, ObjectOutputStream, FileOutputStream}
 
 import cc.factorie.app.nlp.embeddings.{SkipGramNegSamplingEmbeddingModel, EmbeddingOpts}
-import cc.factorie.la.DenseTensor1
+import cc.factorie.la.{DenseTensor2, DenseTensor1}
 
 
 import collection.mutable
@@ -90,10 +90,10 @@ object WordVectorsSerialManager{
   def vectorTxt2Serial(vectorTxtLocation : String, outputSerialLocation : String) {
     val wordEmbed = new WordVectors
     wordEmbed.loadFromTxt(vectorTxtLocation)
-    serialize(outputSerialLocation, wordEmbed)
+    serializeWordVectors(outputSerialLocation, wordEmbed)
   }
 
-  def serialize(location: String, wordEmbedding: WordVectors) {
+  def serializeWordVectors(location: String, wordEmbedding: WordVectors) {
     print(s"Serializing object to location : $location ... ")
     val fos = new FileOutputStream(location)
     val oos = new ObjectOutputStream(fos)
@@ -102,13 +102,31 @@ object WordVectorsSerialManager{
     println("done.")
   }
 
-  def deserialize(location: String): WordVectors = {
+  def deserializeWordVectors(location: String): WordVectors = {
     print(s"Deserializing object from location : $location ... ")
     val fis = new FileInputStream(location)
     val ois = new ObjectInputStreamWithCustomClassLoader(fis)
     val embeddings = ois.readObject.asInstanceOf[WordVectors]
     println("done.")
     embeddings
+  }
+
+  def serializeTransformationMatrix(location: String, matrix: DenseTensor2) {
+    print(s"Serializing object to location : $location ... ")
+    val fos = new FileOutputStream(location)
+    val oos = new ObjectOutputStream(fos)
+    oos.writeObject(matrix)
+    oos.close()
+    println("done.")
+  }
+
+  def deserializeTransformationMatrix(location: String): DenseTensor2 = {
+    print(s"Deserializing object from location : $location ... ")
+    val fis = new FileInputStream(location)
+    val ois = new ObjectInputStreamWithCustomClassLoader(fis)
+    val matrix = ois.readObject.asInstanceOf[DenseTensor2]
+    println("done.")
+    matrix
   }
 
   class ObjectInputStreamWithCustomClassLoader(fileInputStream: FileInputStream) extends ObjectInputStream(fileInputStream) {
