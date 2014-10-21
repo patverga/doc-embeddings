@@ -152,11 +152,11 @@ class WordVectorMath(embedding : WordVectors){
 }
 
 object TestDistance extends App{
-//  val inLocation = "./vectors/newswire-vectors.txt"
-//  val outLocation = "./vectors/newswire-vectors.dat"
+  val inLocation = "./vectors/newswire-vectors.txt"
+  val outLocation = "./vectors/newswire-vectors.dat"
 
-  val inLocation = "./vectors/google-vectors"
-  val outLocation = "./vectors/serial-vectors"
+//  val inLocation = "./vectors/google-vectors"
+//  val outLocation = "./vectors/serial-vectors"
 
   WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
   val distance = new WordVectorMath(WordVectorsSerialManager.deserialize(outLocation))

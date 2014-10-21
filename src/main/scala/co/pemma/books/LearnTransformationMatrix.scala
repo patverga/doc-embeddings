@@ -50,20 +50,8 @@ class TransformationExample(model:TransformationMatrixModel, v1: DenseTensor1, v
     val v1Transformed = model.weights.value.leftMultiply(v1)
     val distance = 1.0 - v1Transformed.cosineSimilarity(v2)
 
-//    val exp: Double = math.exp(-score) // TODO : pre-compute exp table
-//    var objective: Double = 0.0
-//    var factor: Double = 0.0
-//    if (label == 1) {
-//      objective = -math.log1p(exp)
-//      factor = exp / (1 + exp)
-//    }
-//    if (label == -1) {
-//      objective = -score - math.log1p(exp)
-//      factor = -1 / (1 + exp)
-//    }
-//    if (value ne null) value.accumulate(objective)
-      gradient.accumulate(model.weights, v1, distance)
-
+    value.accumulate(distance)
+    gradient.accumulate(model.weights, v1, distance)
   }
 }
 
