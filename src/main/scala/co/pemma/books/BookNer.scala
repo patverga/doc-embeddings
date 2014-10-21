@@ -8,6 +8,7 @@ import java.io.{File, PrintWriter, BufferedWriter, FileWriter}
 object BookNer extends App
 {
 
+  println("Exporting books by year one sentence per line.")
   val bookYear = loadMap("books/book-year-key")
   val bookDir = loadMap("books/book-ner-dir-key")
 
