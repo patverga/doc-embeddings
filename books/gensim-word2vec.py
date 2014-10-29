@@ -37,7 +37,8 @@ def main(argv):
     sentences = LineSentence(input_file)
     model = gensim.models.Word2Vec(sentences, workers=8, size=size, window=window,
                                    negative=negative_sample, sample=down_sample)
-    model.save_word2vec_format(output_file)
+    model.save(output_file)
+
 
 
 if __name__ == "__main__":
