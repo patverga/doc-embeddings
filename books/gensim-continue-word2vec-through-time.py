@@ -2,6 +2,7 @@ from copy import deepcopy
 import logging
 import getopt
 from scipy.spatial.distance import cosine
+import numpy as np
 import sys
 import gensim
 from gensim.models.word2vec import LineSentence
@@ -10,100 +11,97 @@ from collections import defaultdict
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
+input_dir = '../google-ngrams/decades-unweighted/'
+output_dir = '../google-ngrams/vectors-unweighted/'
+decades = range(1850, 2010, 10)
+size = 200
+window = 4
+negative_sample = 10
+down_sample = 1e-5
+min_occurrence_train = 10
+min_occurrence_drift = 500
+alpha_initial = .01
+threshold = .016
+max_epochs = 10
+
+
 # get unique word counts to prune infrequent words
 def unique_words(words_file):
-    # return [word for line in open(words_file, 'r') for word in line.split()]
-    words = defaultdict(int)
+    word_counts = defaultdict(int)
     for line in words_file:
         for word in line:
-            words[word] += 1
-    return words
+            word_counts[word] += 1
+    return word_counts
+
+
+def word_vector_change(word, model0, model1):
+    v1 = model0.__getitem__(word)
+    v2 = model1.__getitem__(word)
+    num = np.dot(v1, v2)
+    den = (np.linalg.norm(v1) * np.linalg.norm(v2))
+    rsult = np.arccos(min((num / den), 1.0))
+    # print rsult
+    return rsult
+
+
+def train_until_converge(word2vec_model, sentences):
+    last_epoch = deepcopy(word2vec_model)
+    change = 1
+    epoch = 0
+    while change > threshold and epoch < max_epochs:
+        word2vec_model.train(sentences, total_words=100000000)
+        changes = [word_vector_change(w, last_epoch, word2vec_model) for w in word2vec_model.vocab]
+        change = sum(changes) / len(word2vec_model.vocab)
+        last_epoch = deepcopy(word2vec_model)
+        epoch += 1
+        print ('epoch : ' + str(epoch), 'change : ' + str(change))
+
+
+def calculate_drifts(word_counts, model_t1, model_t2):
+    print ("calculating drifts.")
+    # list of word shifts between time steps
+    word_shift = [(cosine(model_t1.__getitem__(word), model_t2.__getitem__(word)), word)
+                  for word in word_counts.iterkeys()]
+    sorted_shifts = sorted(word_shift, reverse=True)
+
+    drift_file = open(output_dir + 'drifts', 'w')
+    for sim, word in sorted_shifts:
+        drift_file.write((word + '   ' + str(sim) + '\n').encode('utf-8'))
+    drift_file.close()
 
 
 def main(argv):
-    input_file_t1 = ''
-    input_file_t2 = ''
-    output_file_t1 = ''
-    output_file_t2 = ''
-    size = 100
-    window = 10
-    negative_sample = 10
-    down_sample = 1e-5
-    min_occurance = 20
-    try:
-        opts, args = getopt.getopt(argv, "hi1:i2:o1:02:s:", ["ifile1=", "ifile2=", "ofile1=", "ofile2=", "size="])
-    except getopt.GetoptError:
-        print 'test.py -i <input_file> -o <output_file>'
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print 'test.py -i <input_file> -o <output_file>'
-            sys.exit()
-        elif opt in ("-i1", "--ifile1"):
-            input_file_t1 = arg
-        elif opt in ("-i2", "--ifile2"):
-            input_file_t2 = arg
-        elif opt in ("-o1", "--ofile1"):
-            output_file_t1 = arg
-        elif opt in ("-o2", "--ofile2"):
-            output_file_t2 = arg
-        elif opt in ("-s", "--size"):
-            size = int(arg)
-    print 'T1 Input file is ', input_file_t1
-    print 'T2 Input file is ', input_file_t2
-    print 'T1 Output file is ', output_file_t1
-    print 'T2 Output file is ', output_file_t2
-    print 'Size is ', size
+    vocab_file = ''
+    if len(argv) > 0:
+        opts, args = getopt.getopt(argv, "v:", ["vocab="])
+        for opt, arg in opts:
+            if opt in ("-v", "--vocab"):
+                vocab_file = arg
 
-    model = gensim.models.Word2Vec(workers=8, size=size, window=window,
-                                   negative=negative_sample, sample=down_sample, min_count=1)
+    in_files = [(input_dir + str(decade) + '.gz') for decade in decades]
+    out_files = [(output_dir + str(decade) + '.vectors') for decade in decades]
 
-    t1_sentences = LineSentence(input_file_t1)
-    t2_sentences = LineSentence(input_file_t2)
-    # combined_sentences = LineSentence([input_file_t1, input_file_t2])
+    if vocab_file is not '':
+        print ('Loading vocab from : ' + vocab_file)
+        model = gensim.models.Word2Vec.load(vocab_file)
+    else:
+        print ('Creating vocab.')
+        model = gensim.models.Word2Vec(workers=8, size=size, window=window, alpha=alpha_initial,
+                                       negative=negative_sample, sample=down_sample, min_count=min_occurrence_train)
+        model.build_vocab(LineSentence(in_files))
 
-    # we want a vocabulary of only words that occur in both files
-    t_words = [unique_words(t1_sentences), unique_words(t2_sentences)]
-    # prune infrequent words
-    for t_word_dict in t_words:
-        for w, c in t_word_dict.items():
-            if c < min_occurance:
-                del t_word_dict[w]
+    # sequentially train the model to convergence on each time slice
+    model.save(output_dir + 'vocab')
+    for i, in_file in enumerate(in_files):
+        print ('training on : ' + in_file)
+        train_until_converge(model, LineSentence(in_file))
+        model.save(out_files[i])
 
-    # get the words occuring enough time in both time slices
-    intersect_words = list(set(t_words[0].keys()) & set(t_words[1].keys()))
-    # print "t"
-    # t1_intersect_words = [x for x in t1_words if x in intersect_words]
+    # get the words occuring in corpus at least min_occurrence_drift times
+    word_counts = {w: c for (w, c) in unique_words(LineSentence(in_files)).iteritems() if c > min_occurrence_drift}
 
-
-    # model.build_vocab(t2_sentences)
-    # print(len(model.vocab))
-    model.build_vocab([intersect_words])
-    # print(len(model.vocab))
-    # model.build_vocab(combined_sentences)
-    # print(len(model.vocab))
-
-    # train the model at time T1
-    model.train(t1_sentences)
-    model.save(output_file_t1)
-
-    # continue the same model with dat from T2
-    model.train(t2_sentences)
-    model.save(output_file_t2)
-
-    model_t1 = gensim.models.Word2Vec.load(output_file_t1)
-    # list of word shifts between time steps
-    word_shift = []
-    for word in model.vocab:
-        t1_vector = model_t1.__getitem__(word)
-        t2_vector = model.__getitem__(word)
-        word_shift.append((1 - cosine(t2_vector, t1_vector), word))
-    sorted_shifts = sorted(word_shift, reverse=True)
-
-    drift_file = open('drifts', 'w')
-    for sim, word in sorted_shifts:
-        drift_file.write(word + '   ' + str(sim) + "\n")
-    drift_file.close()
+    model_1900 = gensim.models.Word2Vec.load(output_dir + "1900.gz.vectors")
+    calculate_drifts(word_counts, model, model_1900)
 
 
 if __name__ == "__main__":

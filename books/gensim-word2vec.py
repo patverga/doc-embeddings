@@ -11,10 +11,11 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 def main(argv):
     input_file = ''
     output_file = ''
-    size = 300
-    window = 10
+    size = 200
+    window = 4
     negative_sample = 10
     down_sample = 1e-5
+    min_count = 1
     try:
         opts, args = getopt.getopt(argv, "hi:o:s:", ["ifile=", "ofile="])
     except getopt.GetoptError:
@@ -36,7 +37,7 @@ def main(argv):
 
     sentences = LineSentence(input_file)
     model = gensim.models.Word2Vec(sentences, workers=8, size=size, window=window,
-                                   negative=negative_sample, sample=down_sample)
+                                   negative=negative_sample, sample=down_sample, min_count=min_count)
     model.save(output_file)
 
 

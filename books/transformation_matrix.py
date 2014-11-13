@@ -34,7 +34,7 @@ for i, word in enumerate(anchor_words):
 # b = np.transpose(Z).dot(X)
 # W = matutils.unitvec(a.dot(b))
 
-clf = linear_model.LinearRegression()
+clf = linear_model.Ridge()
 clf.fit(X, Z)
 
 oil_t1 = model_t1.__getitem__('orange')
