@@ -27,8 +27,7 @@ try:
             parts = line[-1].rsplit(",", 1)
             ngram = line[:-1]
             ngram.append(parts[0])
-            try:
-                #count = int(parts[1])
+            try:                
                 count = 1
                 ngrams[' '.join(ngram).lower()] += count
             except:
