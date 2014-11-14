@@ -21,8 +21,8 @@ down_sample = 1e-5
 min_occurrence_train = 10
 min_occurrence_drift = 500
 alpha_initial = .01
-threshold = .016
-max_epochs = 10
+threshold = .02
+max_epochs = 15
 
 
 # get unique word counts to prune infrequent words
@@ -100,7 +100,7 @@ def main(argv):
     # get the words occuring in corpus at least min_occurrence_drift times
     word_counts = {w: c for (w, c) in unique_words(LineSentence(in_files)).iteritems() if c > min_occurrence_drift}
 
-    model_1900 = gensim.models.Word2Vec.load(output_dir + "1900.gz.vectors")
+    model_1900 = gensim.models.Word2Vec.load(output_dir + "1900.vectors")
     calculate_drifts(word_counts, model, model_1900)
 
 
