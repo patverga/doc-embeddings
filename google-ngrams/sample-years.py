@@ -2,7 +2,8 @@ __author__ = 'pv'
 
 from gensim.models.word2vec import LineSentence
 from collections import defaultdict
-from Walker import WalkerRandomSampling
+from numpy import cumsum,  sum, searchsorted
+from numpy.random import rand
 import sys
 
 if len(sys.argv) <= 1:
@@ -13,11 +14,12 @@ else:
     year = int(sys.argv[1])
    
 ngrams = defaultdict(int)
-input = '/home/pat/work3/doc-embeddings/google-ngrams/years/'
-output = '/home/pat/work3/doc-embeddings/google-ngrams/years-sampled/'
-output = '/home/pat/work3/doc-embeddings/google-ngrams/years-sampled-unweighted/'
+input = './years/'
+output = './years-sampled/'
+#output = './years-sampled-unweighted/'
 file = input + str(year) + '.gz'
 lines = LineSentence(file)
+n_samples = 10000000  # 10 million
 
 try:
     for i, line in enumerate(lines):
@@ -36,10 +38,11 @@ except:
     print("file broke")
 
 print ("sampling...")
-walker = WalkerRandomSampling(weights=ngrams.values(), keys=ngrams.keys())
+words = ngrams.keys()
+weights = ngrams.values()
+t = cumsum(weights)
+s = sum(weights)
 
-print("writing samples to file\n")
 with open(output + str(year), 'w') as f:
-    for i in range(0, 10000):
-        for sample in walker.random(1000):
-            f.write((sample + "\n").encode('utf-8'))
+    for index in searchsorted(t, rand(n_samples)*s):
+        f.write((words[index] + "\n").encode('utf-8'))
