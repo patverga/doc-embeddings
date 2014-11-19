@@ -11,8 +11,8 @@ from collections import defaultdict
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-input_dir = '../google-ngrams/decades-unweighted/'
-output_dir = '../google-ngrams/vectors-unweighted/'
+input_dir = '../google-ngrams/decades/'
+output_dir = '../google-ngrams/vectors/'
 decades = range(1850, 2010, 10)
 size = 200
 window = 4
@@ -22,7 +22,7 @@ min_occurrence_train = 10
 min_occurrence_drift = 500
 alpha_initial = .01
 threshold = .02
-max_epochs = 15
+max_epochs = 20
 
 
 # get unique word counts to prune infrequent words
@@ -60,7 +60,7 @@ def train_until_converge(word2vec_model, sentences):
 def calculate_drifts(word_counts, model_t1, model_t2):
     print ("calculating drifts.")
     # list of word shifts between time steps
-    word_shift = [(cosine(model_t1.__getitem__(word), model_t2.__getitem__(word)), word)
+    word_shift = [(1.0 - cosine(model_t1.__getitem__(word), model_t2.__getitem__(word)), word)
                   for word in word_counts.iterkeys()]
     sorted_shifts = sorted(word_shift, reverse=True)
 

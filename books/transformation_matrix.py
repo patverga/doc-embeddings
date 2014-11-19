@@ -7,12 +7,14 @@ from gensim import matutils
 import numpy as np
 
 
-k_anchor_words = 50
+k_anchor_words = 100
 t1_file = 'vectors/1850-300-fast'
 t2_file = 'vectors/1910-300-fast'
+# anchor_file = "/home/pv/doc-embeddings/src/main/resources/function_words"
+anchor_file = 'anchors'
 
 # read in the drift file to choose anchor words
-with open("/home/pv/doc-embeddings/src/main/resources/function_words") as drift_file:
+with open(anchor_file) as drift_file:
     anchor_words = [next(drift_file) for x in xrange(k_anchor_words)]
 
 print "loading models... "
@@ -25,21 +27,18 @@ Z = np.zeros((k_anchor_words, model_t2.layer1_size))
 
 for i, word in enumerate(anchor_words):
     clean_Word = word.strip()
-    if model_t1.__contains__(clean_Word):
+    if model_t1.__contains__(clean_Word) and model_t2.__contains__(clean_Word):
         X[i] = model_t1.__getitem__(clean_Word)
         Z[i] = model_t2.__getitem__(clean_Word)
 
-# W = (XX^T)^T XZ^T
-# a = np.transpose(np.transpose(X).dot(X))
-# b = np.transpose(Z).dot(X)
-# W = matutils.unitvec(a.dot(b))
 
+# train linear regression model
 clf = linear_model.Ridge()
 clf.fit(X, Z)
 
-oil_t1 = model_t1.__getitem__('orange')
-oil_t2 = model_t2.__getitem__('orange')
+oil_t1 = model_t1.__getitem__('oil')
+oil_t2 = model_t2.__getitem__('oil')
 
-print(model_t2.most_similar_to_vector(oil_t1))
-print(model_t2.most_similar_to_vector(oil_t2))
-print(model_t2.most_similar_to_vector(clf.predict(oil_t1)))
+print(model_t2.most_similar_vector(oil_t2))
+print(model_t2.most_similar_vector(oil_t1))
+print(model_t2.most_similar_vector(clf.predict(oil_t1)))
