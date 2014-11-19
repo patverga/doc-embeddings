@@ -1,6 +1,7 @@
 __author__ = 'pv'
 
 import gzip
+from collections import defaultdict
 
 
 def map_subjects():
@@ -8,7 +9,7 @@ def map_subjects():
 
     # get the subjects we can map
     with open("classifications/all-subjects") as f:
-        subjects = {line.strip() for line in f.readlines()}
+        subjects = {line.decode('utf-8').replace(u'\u2011', "-").strip() for line in f.readlines()}
 
     # see how many books are in the list
     books_mapped = 0
@@ -25,3 +26,17 @@ def map_subjects():
     book_file.close()
 
     return subjects_mapped
+
+def map_subjects_IDS():
+    subject_id_map = defaultdict()
+    # get the subjects we can map
+    with open("classifications/all-unfiltered") as f:
+        for line in f.readlines():
+            parts = line.decode('utf-8').replace(u'\u2011', "-").split("\t", 1)
+            ID = parts[0].strip()
+            if len(parts) > 1 and len(ID) > 0:
+                subject_id_map[parts[1].strip()] = ID
+
+    return subject_id_map
+
+map_subjects_IDS()
