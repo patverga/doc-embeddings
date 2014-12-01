@@ -24,14 +24,12 @@ object BookQueries
 
     // read in queries
     val querySource = Source.fromURL(getClass.getResource("/book_queries"))(io.Codec("UTF-8"))
-//    val source = Source.fromFile("./book_queries")
     val queries = querySource.getLines().toList
     querySource.close()
     val query =  queries(qid)
 
     // read in subjectmap
     val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))(io.Codec("UTF-8"))
-    //    val source = Source.fromFile("./book_queries")
     val subjects = subjectSource.getLines().map(line => { val parts = line.split("\\|"); parts(0) -> parts(1) }).toMap
     subjectSource.close()
 
@@ -40,9 +38,9 @@ object BookQueries
 
     // initialize things
 //      val bookIndex = List("./index/books-index_small", "./index/wikipedia").asJava
-    val bookIndex = "./index/pages-index_20"
-//    val bookIndex = (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
-//    yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
+//    val bookIndex = "./index/pages-index_20"
+    val bookIndex = (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
+    yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
 
    println(bookIndex.toString)
 
