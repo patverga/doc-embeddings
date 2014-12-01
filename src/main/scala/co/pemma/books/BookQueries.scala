@@ -20,7 +20,7 @@ object BookQueries
     val output = "./books/output/"
 
     assert(args.size > 0, " Must supply a query id number.")
-    val qid = Integer.parseInt(args(0)) + 1
+    val qid = Integer.parseInt(args(0))
 
     // read in queries
     val source = Source.fromURL(getClass.getResource("/book_queries"))
