@@ -1,4 +1,4 @@
-package edu.umass.ciir.ede.features
+package co.pemma
 
 import edu.umass.ciir.strepsi.ciirshared.LanguageModel
 import edu.umass.ciir.strepsi.galagocompat.GalagoTag

@@ -4,7 +4,6 @@ import java.io.File
 
 import cc.factorie.la.DenseTensor1
 import co.pemma.embeddings.{WordVectorMath, WordVectorUtils, WordVectorsSerialManager}
-import edu.umass.ciir.ede.features.ExpansionModels
 import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
