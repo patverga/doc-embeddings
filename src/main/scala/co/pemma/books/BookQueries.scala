@@ -16,27 +16,27 @@ object BookQueries
   def main(args: Array[String])
   {
     // set some params
-    val numDocs = 1000
+    val numDocs = 50000
     val output = "./books/output/"
 
     assert(args.size > 0, " Must supply a query id number.")
     val qid = Integer.parseInt(args(0))
 
     // read in queries
-    val querySource = Source.fromURL(getClass.getResource("/book_queries"))
+    val querySource = Source.fromURL(getClass.getResource("/book_queries"))(io.Codec("UTF-8"))
 //    val source = Source.fromFile("./book_queries")
     val queries = querySource.getLines().toList
     querySource.close()
-    val query = queries(qid)
+    val query =  queries(qid)
 
     // read in subjectmap
-    val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))
+    val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))(io.Codec("UTF-8"))
     //    val source = Source.fromFile("./book_queries")
     val subjects = subjectSource.getLines().map(line => { val parts = line.split("\\|"); parts(0) -> parts(1) }).toMap
     subjectSource.close()
 
     // make sure this subject is mappable
-    assert(subjects.contains(query))
+    assert(subjects.contains(query), s"The query \'$query\' does not exist in the subjects map.")
 
     // initialize things
 //      val bookIndex = List("./index/books-index_small", "./index/wikipedia").asJava
