@@ -1,15 +1,13 @@
 package co.pemma.books
 
-import java.io.{BufferedWriter, FileWriter, File}
+import java.io.File
 
-import co.pemma.ExpansionModels
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.tupleflow.Parameters
-import scala.collection.JavaConverters._
+
 import scala.io.Source
-import scala.util.matching.Regex
 
 /**
  * Created by pv on 11/19/14.
@@ -17,7 +15,7 @@ import scala.util.matching.Regex
 object BookQueries
 {
   // set some params
-  val numDocs = 5000
+  val numDocs = 50000
   val output = "./books/output/"
   val langRegex = "[eE]ng(?:lish)?".r
 
