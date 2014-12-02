@@ -147,7 +147,11 @@ object ExpansionModels {
         p.set("odw", 0.07906)
         p.set("uww", 0.04829)
         p.set("deltaReady", true)
-        p
+      }
+      else if (collection == "rm"){
+        p.set("fbOrigWt", 0.8)
+        p.set("fbDocs", 20)
+        p.set("fbTerm",10)
       }
       else {
         p.set("mu", 96400.0)
@@ -156,7 +160,6 @@ object ExpansionModels {
         p.set("odw", 0.1)
         p.set("uww", 0.05)
         p.set("deltaReady", true)
-        p
       }
     p
     }
