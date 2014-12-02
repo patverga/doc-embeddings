@@ -52,22 +52,22 @@ object BookQueries
     println(s" Running query number $qid: $query")
     val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(query)).queryStr
 
-    // run the query and pull the top results
+    // run the query
     val params = ExpansionModels.getCollectionParams("books")
     val rankings = searcher.retrieveScoredDocuments(galagoQuery, Some(params), numDocs)
-    val collectionDocs = rankings.map(doc => (doc.rank, doc.score, searcher.pullDocumentWithTokensAndMeta(doc.documentName)))
 
     // write results to file
     val langRegex = "[eE]ng(?:lish)?".r
     val p = new java.io.PrintWriter(s"$output/$qid-${subjects(query)}")
     try {
-      collectionDocs.foreach { case (rank, score, doc) =>
+      rankings.foreach(rankedDoc => {
+        val doc = searcher.pullDocumentWithTokensAndMeta(rankedDoc.documentName)
         val lang = doc.metadata.get("language")
         val subject = doc.metadata.get("subject")
         val year = doc.metadata.get("year")
         if (year != null && subject != null  && lang != null && subjects.contains(subject) && langRegex.pattern.matcher(lang).matches())
-          p.write(s"$qid \t $rank \t $score \t ${doc.name} \t $subject \t ${subjects(subject)} \t $year \n")
-      }
+          p.write(s"$qid \t ${rankedDoc.rank} \t ${rankedDoc.score} \t ${doc.name} \t $subject \t ${subjects(subject)} \t $year \n")
+      })
     }
     finally {
       p.close()
