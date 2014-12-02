@@ -1,13 +1,15 @@
 package co.pemma.books
 
-import java.io.File
+import java.io.{BufferedWriter, FileWriter, File}
 
+import co.pemma.ExpansionModels
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.tupleflow.Parameters
-
+import scala.collection.JavaConverters._
 import scala.io.Source
+import scala.util.matching.Regex
 
 /**
  * Created by pv on 11/19/14.
@@ -41,9 +43,9 @@ object BookQueries
 
     // set up galago
     //      val bookIndex = List("./index/books-index_small", "./index/wikipedia").asJava
-    val bookIndex = "./index/pages-index_20"
-//    val bookIndex = (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
-//    yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
+//    val bookIndex = "./index/pages-index_20"
+    val bookIndex = (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
+    yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
     val indexParam = new Parameters()
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
