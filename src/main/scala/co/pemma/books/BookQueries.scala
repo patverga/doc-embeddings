@@ -18,6 +18,8 @@ object BookQueries
 {
   // set some params
   val numDocs = 50000
+  val numExpansionDocs = 10
+  val numExpansionTerms = 50
   val output = "./books/output/"
   val langRegex = "[eE]ng(?:lish)?".r
 
@@ -25,6 +27,7 @@ object BookQueries
   {
     assert(args.size > 0, " Must supply a query id number.")
     val qid = Integer.parseInt(args(0))
+    val test = if (args.size > 1 && args(1) == "test") true else false
 
     // read in queries
     val querySource = Source.fromURL(getClass.getResource("/book_queries"))(io.Codec("UTF-8"))
@@ -42,27 +45,33 @@ object BookQueries
     println(s" Running query number $qid: $query")
 
     // set up galago
-    //      val bookIndex = List("./index/books-index_small", "./index/wikipedia").asJava
-//    val bookIndex = "./index/pages-index_20"
-    val bookIndex = (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
-    yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
+    val bookIndex = if (test) List("./index/pages-index_20").asJava else{
+      (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
+      yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
+    }
     val indexParam = new Parameters()
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
     val defaultStopStructures = new StopStructuring(searcher.getUnderlyingRetrieval())
 
-    val unstoppedQuery = defaultStopStructures.removeStopStructure(query)
     // run sdm and rm queries and export results
-    Seq(("sdm", GalagoQueryBuilder.seqdep(unstoppedQuery).queryStr),
-      ("rm", s"#rm($unstoppedQuery)"))
-      .foreach{case (qType, gQuery) =>
-      val rankings = searcher.retrieveScoredDocuments(gQuery, None, numDocs)
-      exportResults(qid, query, subjects, rankings, qType, searcher)
-    }
+    println("Running SDM Query...")
+    val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(query)).queryStr
+    val sdmRankings = searcher.retrieveScoredDocuments(galagoQuery, None, numDocs)
+    exportResults(qid, query, subjects, "sdm", searcher, sdmRankings)
+
+    println("Running RM Query...")
+    val expansionTerms = ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, numExpansionTerms)
+    val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher)
+    exportResults(qid, query, subjects, "rm", searcher,rmRankings)
+
+
   }
 
-  def exportResults(qid: Int, query : String, subjects: Map[String, String],
-                    rankings: Seq[ScoredDocument], runType: String, searcher : GalagoSearcher) {
+  def exportResults(qid: Int, query : String, subjects: Map[String, String], runType: String,
+                    searcher : GalagoSearcher, rankings: Seq[ScoredDocument])
+  {
+    println(s"Exporting $runType Results")
     // make dirs
     Seq("raw", "trec", "qrel").foreach(dir => new File(s"$output/$runType/$dir/").mkdirs())
 
