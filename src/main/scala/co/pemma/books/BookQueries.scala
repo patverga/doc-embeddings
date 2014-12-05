@@ -22,6 +22,7 @@ object BookQueries
   val numExpansionTerms = 50
   val output = "./books/output/"
   val langRegex = "[eE]ng(?:lish)?".r
+  val yearRegex = "[12][0-9]{3}".r
 
   def main(args: Array[String])
   {
@@ -45,9 +46,9 @@ object BookQueries
     println(s" Running query number $qid: $query")
 
     // set up galago
-    val bookIndex = if (test) List("./index/pages-index_20").asJava else{
-      (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
-      yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
+    val bookIndex = if (test) List("./index/pages-index_20").asJava
+      else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
+        yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
     }
     val indexParam = new Parameters()
     indexParam.set("index", bookIndex)
@@ -65,6 +66,7 @@ object BookQueries
     val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher)
     exportResults(qid, query, subjects, "rm", searcher,rmRankings)
 
+    println("Running timeslice queries")
 
   }
 
@@ -90,8 +92,9 @@ object BookQueries
         val lang = doc.metadata.get("language")
         val subject = doc.metadata.get("subject")
         val year = doc.metadata.get("year")
-        // make sure this doc has a year, subject and is english
-        if (year != null && subject != null && lang != null && subjects.contains(subject) && langRegex.pattern.matcher(lang).matches()) {
+        // make sure this doc has a valid year, mappable subject and is english
+        if (year != null && subject != null && lang != null && subjects.contains(subject)
+          && langRegex.pattern.matcher(lang).matches() && yearRegex.pattern.matcher(year).matches()) {
           // output
           rawPrinter.println(s"$qid \t ${rankedDoc.rank} \t ${rankedDoc.score} \t ${doc.name} \t $subject \t ${subjects(subject)} \t $year")
           trecPrinter.println("%s Q0 %s %d %s %s".format(qid, doc.name, rank, "%10.8f".format(rankedDoc.score), runType))
