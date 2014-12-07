@@ -1,6 +1,6 @@
 package co.pemma.books
 
-import java.io.{BufferedWriter, FileWriter, File}
+import java.io.File
 
 import co.pemma.ExpansionModels
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
@@ -8,8 +8,8 @@ import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import org.lemurproject.galago.core.retrieval.ScoredDocument
 import org.lemurproject.galago.tupleflow.Parameters
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
-import scala.util.matching.Regex
 
 /**
  * Created by pv on 11/19/14.
@@ -18,11 +18,14 @@ object BookQueries
 {
   // set some params
   val numDocs = 50000
+  val numResults = 1000
   val numExpansionDocs = 10
   val numExpansionTerms = 50
   val output = "./books/output/"
   val langRegex = "[eE]ng(?:lish)?".r
   val yearRegex = "[12][0-9]{3}".r
+  val minDate = 1780
+  val maxDate = 1930
 
   def main(args: Array[String])
   {
@@ -46,7 +49,7 @@ object BookQueries
     println(s" Running query number $qid: $query")
 
     // set up galago
-    val bookIndex = if (test) List("./index/pages-index_20").asJava
+    val bookIndex = if (test) List("./index/pages-filtered_02").asJava
       else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
         yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
     }
@@ -64,11 +67,19 @@ object BookQueries
     println("Running RM Query...")
     val expansionTerms = ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, numExpansionTerms)
     val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher)
-    exportResults(qid, query, subjects, "rm", searcher,rmRankings)
+    exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
     println("Running timeslice queries")
-
+    val pool = Seq[ScoredDocument]()
+    for (decade <- minDate to maxDate by 10){
+      val decadeRankings = ExpansionModels.runDecadeExpansionQuery(decade, galagoQuery, "robust", searcher)
+      val decadeExpansionTerms = ExpansionModels.lce(decadeRankings take numExpansionDocs, searcher, numExpansionTerms)
+      val decadeRmRankings = ExpansionModels.runExpansionQuery(galagoQuery, decadeExpansionTerms, "robust", searcher)
+      pool ++ decadeRmRankings
+    }
+    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
   }
+
 
   def exportResults(qid: Int, query : String, subjects: Map[String, String], runType: String,
                     searcher : GalagoSearcher, rankings: Seq[ScoredDocument])

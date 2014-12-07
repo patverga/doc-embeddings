@@ -138,6 +138,14 @@ object ExpansionModels {
     searcher.retrieveScoredDocuments(expandedQuery, Some(params), numResults)
   }
 
+  def runDecadeExpansionQuery(date : Int, galagoQuery : String, collection:String, searcher : GalagoSearcher, numResults : Int = 1000)
+  : Seq[ScoredDocument] = {
+    val params = getCollectionParams(collection)
+    val decadeQuery = s"#require(#between(date ${date-1} ${date+10}}) $galagoQuery)"
+    println("running query: " + decadeQuery)
+    searcher.retrieveScoredDocuments(decadeQuery, Some(params), numResults)
+  }
+
   def getCollectionParams(collection : String) : Parameters ={
       val p = new Parameters()
       if (collection == "robust") {
