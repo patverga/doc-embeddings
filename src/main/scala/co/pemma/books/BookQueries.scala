@@ -49,7 +49,7 @@ object BookQueries
     println(s" Running query number $qid: $query")
 
     // set up galago
-    val bookIndex = if (test) List("./index/pages-filtered_02").asJava
+    val bookIndex = if (test) List("./index/page-filtered-index_02").asJava
       else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
         yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
     }
@@ -70,12 +70,12 @@ object BookQueries
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
     println("Running timeslice queries")
-    val pool = Seq[ScoredDocument]()
+    val pool = ListBuffer[ScoredDocument]()
     for (decade <- minDate to maxDate by 10){
       val decadeRankings = ExpansionModels.runDecadeExpansionQuery(decade, galagoQuery, "robust", searcher)
       val decadeExpansionTerms = ExpansionModels.lce(decadeRankings take numExpansionDocs, searcher, numExpansionTerms)
       val decadeRmRankings = ExpansionModels.runExpansionQuery(galagoQuery, decadeExpansionTerms, "robust", searcher)
-      pool ++ decadeRmRankings
+      pool ++= decadeRmRankings
     }
     exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
   }
@@ -102,9 +102,10 @@ object BookQueries
         val doc = searcher.pullDocumentWithTokensAndMeta(rankedDoc.documentName)
         val lang = doc.metadata.get("language")
         val subject = doc.metadata.get("subject")
-        val year = doc.metadata.get("year")
-        // make sure this doc has a valid year, mappable subject and is english
-        if (year != null && subject != null && lang != null && subjects.contains(subject)
+        val year = doc.metadata.get("date")
+        val intYear = Integer.parseInt(year)
+        // make sure this doc has a valid year within the given range, mappable subject and is english
+        if (year != null && minDate <= intYear && intYear <= maxDate && subject != null && lang != null && subjects.contains(subject)
           && langRegex.pattern.matcher(lang).matches() && yearRegex.pattern.matcher(year).matches()) {
           // output
           rawPrinter.println(s"$qid \t ${rankedDoc.rank} \t ${rankedDoc.score} \t ${doc.name} \t $subject \t ${subjects(subject)} \t $year")
