@@ -114,14 +114,18 @@ object BookQueries
         val intYear = Integer.parseInt(year)
         // make sure this doc has a valid year within the given range, mappable subject and is english
         if (year != null && minDate <= intYear && intYear <= maxDate && subject != null && lang != null && subjects.contains(subject)
-          && langRegex.pattern.matcher(lang).matches() && yearRegex.pattern.matcher(year).matches()) {
-          // output
-          rawPrinter.println(s"$qid \t ${rankedDoc.rank} \t ${rankedDoc.score} \t ${doc.name} \t $subject \t ${subjects(subject)} \t $year")
+          && langRegex.pattern.matcher(lang).matches() && yearRegex.pattern.matcher(year).matches())
+        {
+          val subjectID = subjects(subject)
+          rawPrinter.println(s"$qid \t ${rankedDoc.rank} \t ${rankedDoc.score} \t ${doc.name} \t $subject \t $subjectID \t $year")
           trecPrinter.println("%s Q0 %s %d %s %s".format(qid, doc.name, rank, "%10.8f".format(rankedDoc.score), runType))
           // estimate relevance by subject heading
           var relevance = 0
-          if (subject.charAt(0) == qSubject.charAt(0)) relevance += 2
-          if (subject.charAt(1) == qSubject.charAt(1)) relevance += 2
+          if (subject.charAt(0) == qSubject.charAt(0)) {
+            relevance += 2
+            if (subject.charAt(1) == qSubject.charAt(1))
+              relevance += 2
+          }
           qrelPrinter.println("%s %s %s %s".format(qid, 0, doc.name, relevance))
           rank += 1
         }
