@@ -17,7 +17,7 @@ import scala.io.Source
 object BookQueries
 {
   // set some params
-  val numDocs = 50000
+  val numDocs = 2500
   val numResults = 1000
   val numExpansionDocs = 10
   val numExpansionTerms = 50
@@ -77,7 +77,10 @@ object BookQueries
     for (decade <- maxDate to minDate by -10){
       val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms)
       val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
-        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
+        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
+          (decadeExpansionTerms take numExpansionTerms).filterNot(term => { // dont use lang or year as exp terms
+            yearRegex.pattern.matcher(term._1).matches() && langRegex.pattern.matcher(term._1).matches()
+          })), 1 - 0.55))),
         "robust", searcher)
       pool ++= decadeRmRankings
       lastRankings = decadeRmRankings
