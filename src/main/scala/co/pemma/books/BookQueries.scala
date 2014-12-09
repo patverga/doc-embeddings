@@ -75,12 +75,12 @@ object BookQueries
     val pool = ListBuffer[ScoredDocument]()
     var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher)
     for (decade <- maxDate to minDate by -10){
-      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms)
+      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
+      filterNot(term => { // dont use lang or year as exp terms
+        yearRegex.pattern.matcher(term._1).matches() || langRegex.pattern.matcher(term._1).matches()})
       val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
         GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
-          (decadeExpansionTerms take numExpansionTerms).filterNot(term => { // dont use lang or year as exp terms
-            yearRegex.pattern.matcher(term._1).matches() && langRegex.pattern.matcher(term._1).matches()
-          })), 1 - 0.55))),
+          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
         "robust", searcher)
       pool ++= decadeRmRankings
       lastRankings = decadeRmRankings
