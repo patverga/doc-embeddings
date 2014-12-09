@@ -24,8 +24,8 @@ object BookQueries
   val output = "./books/output/"
   val langRegex = "[eE]ng(?:lish)?".r
   val yearRegex = "[12][0-9]{3}".r
-  val minDate = 1780
-  val maxDate = 1930
+  val minDate = 1800
+  val maxDate = 1920
 
   def main(args: Array[String])
   {

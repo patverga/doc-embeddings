@@ -3,7 +3,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 from mapable_subjects import map_subjects
 
-min_year = 163
+min_year = 180
 max_year = 193
 min_time_slices = 10
 plot_max = 10000
