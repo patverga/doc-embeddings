@@ -103,7 +103,7 @@ object BookQueries
 //    val qrelPrinter = new java.io.PrintWriter(new BufferedWriter(new FileWriter(s"$output/$runType/qrel", true)))
     // keep track of number of docs that pass output criteria
     var rank = 1
-    val qSubject = subjects(query)
+    val qSubjectID = subjects(query)
     try {
       rankings.foreach(rankedDoc => {
         // get some data to export
@@ -121,9 +121,9 @@ object BookQueries
           trecPrinter.println("%s Q0 %s %d %s %s".format(qid, doc.name, rank, "%10.8f".format(rankedDoc.score), runType))
           // estimate relevance by subject heading
           var relevance = 0
-          if (subject.charAt(0) == qSubject.charAt(0)) {
+          if (subjectID.charAt(0) == qSubjectID.charAt(0)) {
             relevance += 2
-            if (subject.charAt(1) == qSubject.charAt(1))
+            if (subjectID.charAt(1) == qSubjectID.charAt(1))
               relevance += 2
           }
           qrelPrinter.println("%s %s %s %s".format(qid, 0, doc.name, relevance))
