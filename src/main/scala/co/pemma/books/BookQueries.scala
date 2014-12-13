@@ -49,10 +49,11 @@ object BookQueries
     println(s" Running query number $qid: $query")
 
     // set up galago
+    val skipIndex = Seq(8, 28, 37, 38)
     val bookIndex = if (test) List("./index/page-filtered-index_02").asJava
 //      else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
 //        yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
-    else{ (for (i <- 0 to 43; if i != 1 && i != 18 && i != 19 && i != 20 && i != 22 && i != 24 && i != 26 && i != 29 && i != 36 && i != 42; num = if (i < 10) s"0$i"; else s"$i")
+    else{ (for (i <- 0 to 43; if !skipIndex.contains(i); num = if (i < 10) s"0$i"; else s"$i")
           yield s"./index/page-indices/page-filtered-index_$num").toList.asJava
     }
     val indexParam = new Parameters()
