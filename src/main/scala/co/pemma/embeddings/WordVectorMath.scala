@@ -71,6 +71,19 @@ class WordVectorMath(embedding : WordVectors){
     pq
   }
 
+  def stringNearestNeighbors(inString : String) : Seq[(String, Double)] =
+  {
+    val knn = 5
+    val terms = 10
+    val phrases = WordVectorUtils.extractPhrasesWindow(inString, this)
+    val expTerms = phrases.flatMap(t => nearestNeighbors(Array(t), word2Vec(t), knn)).toSeq.sortBy(-_._2).take(terms).map(w =>{
+      if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
+      else w
+    })
+    expTerms
+  }
+
+
   def sumWords(words: Iterable[String]) : DenseTensor1 = {
     val wordIds = words.map(word => getID(word)).filter(id => id != -1)
     if (wordIds.size == 0) {
@@ -149,16 +162,6 @@ class WordVectorMath(embedding : WordVectors){
       return -1
     vocab.getOrElse(word, -1)
   }
-}
-
-object TestDistance extends App{
-  val inLocation = "/home/pv/doc-embeddings/books/vectors/1910-800"
-  val outLocation = inLocation+".dat"
-
-  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
-  val distance = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(outLocation))
-//  println(distance.phrase2Vec("bill clinton"))
-  distance.interactiveNearestNeighbor()
 }
 
 

@@ -97,3 +97,14 @@ object WordVectorUtils {
     inputStr.replaceAll("_", " ").replaceAll("\\p{P}|#", "")
   }
 }
+
+
+object TestDistance extends App{
+  val inLocation = args(0)
+  val outLocation = inLocation+".dat"
+
+  WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
+  val distance = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(outLocation))
+  //  println(distance.phrase2Vec("bill clinton"))
+  distance.interactiveNearestNeighbor()
+}

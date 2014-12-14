@@ -3,6 +3,7 @@ package co.pemma.books
 import java.io.File
 
 import co.pemma.ExpansionModels
+import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
 import org.lemurproject.galago.core.retrieval.ScoredDocument
@@ -60,10 +61,15 @@ object BookQueries
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
     val defaultStopStructures = new StopStructuring(searcher.getUnderlyingRetrieval())
+    val cleanQuery = defaultStopStructures.removeStopStructure(query).toLowerCase
 
     // run sdm and rm queries and export results
+    println("Running QL Query...")
+    val qlRankings = searcher.retrieveScoredDocuments(s"#combine($cleanQuery)", None, numDocs)
+    exportResults(qid, query, subjects, "ql", searcher, qlRankings)
+
     println("Running SDM Query...")
-    val galagoQuery = GalagoQueryBuilder.seqdep(defaultStopStructures.removeStopStructure(query)).queryStr
+    val galagoQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
     val sdmRankings = searcher.retrieveScoredDocuments(galagoQuery, None, numDocs)
     exportResults(qid, query, subjects, "sdm", searcher, sdmRankings)
 
@@ -72,21 +78,30 @@ object BookQueries
     val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher)
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
-    println("Running timeslice queries")
-    val pool = ListBuffer[ScoredDocument]()
-    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher)
-    for (decade <- maxDate to minDate by -10){
-      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
-      filterNot(term => { // dont use lang or year as exp terms
-        yearRegex.pattern.matcher(term._1).matches() || langRegex.pattern.matcher(term._1).matches()})
-      val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
-        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
-          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
-        "robust", searcher)
-      pool ++= decadeRmRankings
-      lastRankings = decadeRmRankings
-    }
-    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
+//    println("Running timeslice queries...")
+//    val pool = ListBuffer[ScoredDocument]()
+//    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher)
+//    for (decade <- maxDate to minDate by -10){
+//      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
+//      filterNot(term => { // dont use lang or year as exp terms
+//        yearRegex.pattern.matcher(term._1).matches() || langRegex.pattern.matcher(term._1).matches()})
+//      val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
+//        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
+//          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
+//        "robust", searcher)
+//      pool ++= decadeRmRankings
+//      lastRankings = decadeRmRankings
+//    }
+//    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
+
+    println("Running single word embedding queries...")
+    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/191.vectors.dat"))
+    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery)
+    val wordVecRankings = ExpansionModels.runExpansionQuery(galagoQuery, wordVecExpansionTerms, "robust", searcher)
+    exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
+
+    println("Running time slice word embedding queries...")
+    val wordVecsT = for (i <- 1 to 5) yield new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/191.vectors.dat"))
   }
 
 
