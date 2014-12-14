@@ -147,7 +147,7 @@ object BookQueries
           // estimate relevance by subject heading
           var relevance = 0
           if (subjectID.charAt(0) == qSubjectID.charAt(0)) {
-            relevance += 2
+//            relevance += 2
             if (subjectID.charAt(1) == qSubjectID.charAt(1))
               relevance += 2
           }
