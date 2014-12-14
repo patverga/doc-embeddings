@@ -26,7 +26,7 @@ object BookQueries
   val langRegex = "[eE]ng(?:lish)?".r
   val yearRegex = "[12][0-9]{3}".r
   val minDate = 1800
-  val maxDate = 1920
+  val maxDate = 1940
 
   def main(args: Array[String])
   {
@@ -78,30 +78,39 @@ object BookQueries
     val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher)
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
-//    println("Running timeslice queries...")
-//    val pool = ListBuffer[ScoredDocument]()
-//    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher)
-//    for (decade <- maxDate to minDate by -10){
-//      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
-//      filterNot(term => { // dont use lang or year as exp terms
-//        yearRegex.pattern.matcher(term._1).matches() || langRegex.pattern.matcher(term._1).matches()})
-//      val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
-//        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
-//          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
-//        "robust", searcher)
-//      pool ++= decadeRmRankings
-//      lastRankings = decadeRmRankings
-//    }
-//    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
+    println("Running timeslice queries...")
+    val pool = ListBuffer[ScoredDocument]()
+    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher)
+    for (decade <- maxDate to minDate by -10){
+      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
+      filterNot(term => { // dont use lang or year as exp terms
+        yearRegex.pattern.matcher(term._1).matches() || langRegex.pattern.matcher(term._1).matches()})
+      val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
+        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
+          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
+        "robust", searcher)
+      pool ++= decadeRmRankings
+      lastRankings = decadeRmRankings
+    }
+    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
 
     println("Running single word embedding queries...")
-    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/191.vectors.dat"))
+    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/191.vectors.dat"))
     val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery)
     val wordVecRankings = ExpansionModels.runExpansionQuery(galagoQuery, wordVecExpansionTerms, "robust", searcher)
     exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
 
     println("Running time slice word embedding queries...")
-    val wordVecsT = for (i <- 1 to 5) yield new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/191.vectors.dat"))
+    val decadeVecPool = ListBuffer[ScoredDocument]()
+    for (decade <- minDate to maxDate) {
+      val decadeVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/$decade.vectors.dat"))
+      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery)
+      val decadeVecRankings = ExpansionModels.runDecadeExpansionQuery(decade*10,
+        GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
+          decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
+      decadeVecPool ++= decadeVecRankings
+    }
+    exportResults(qid, query, subjects, "time-vectors", searcher, decadeVecPool.sortBy(_.score) take numResults)
   }
 
 

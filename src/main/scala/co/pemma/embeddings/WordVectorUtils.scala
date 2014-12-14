@@ -105,8 +105,9 @@ object SerializeVectorTxt extends App{
   val outLocation = inLocation+".dat"
 
   WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
-  val distance = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(outLocation))
-  //  println(distance.phrase2Vec("bill clinton"))
-  if (args.length > 1)
+   //  println(distance.phrase2Vec("bill clinton"))
+  if (args.length > 1) {
+    val distance = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(outLocation))
     distance.interactiveNearestNeighbor()
+  }
 }
