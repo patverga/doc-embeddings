@@ -34,7 +34,7 @@ object BookQueries
     val test = if (args.size > 1 && args(1) == "test") true else false
 
     // read in queries
-    val querySource = Source.fromURL(getClass.getResource("/book_queries"))(io.Codec("UTF-8"))
+    val querySource = Source.fromURL(getClass.getResource("/book_queries_5"))(io.Codec("UTF-8"))
     val queries = querySource.getLines().toList
     querySource.close()
     val query =  queries(qid)

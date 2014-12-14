@@ -5,7 +5,7 @@ from mapable_subjects import map_subjects
 
 min_year = 180
 max_year = 193
-min_time_slices = 10
+min_time_slices = 5
 plot_max = 10000
 
 subject_years_counts = defaultdict(lambda: [0] * (max_year - min_year))
