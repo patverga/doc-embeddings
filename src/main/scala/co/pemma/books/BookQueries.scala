@@ -102,10 +102,10 @@ object BookQueries
 
     println("Running time slice word embedding queries...")
     val decadeVecPool = ListBuffer[ScoredDocument]()
-    for (decade <- minDate to maxDate) {
-      val decadeVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/$decade.vectors.dat"))
+    for (decade <- minDate to maxDate by 10) {
+      val decadeVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade/10}.vectors.dat"))
       val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery)
-      val decadeVecRankings = ExpansionModels.runDecadeExpansionQuery(decade*10,
+      val decadeVecRankings = ExpansionModels.runDecadeExpansionQuery(decade,
         GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
           decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
       decadeVecPool ++= decadeVecRankings
