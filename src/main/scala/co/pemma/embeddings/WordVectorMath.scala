@@ -1,5 +1,6 @@
 package co.pemma.embeddings
 
+import cc.factorie.app.nlp
 import cc.factorie.app.nlp.embeddings.TensorUtils
 import cc.factorie.la.{Tensor, DenseTensor1}
 import org.apache.commons.lang3.text.WordUtils
@@ -52,18 +53,20 @@ class WordVectorMath(embedding : WordVectors){
   def nearestNeighbors(words: Array[String], embedding_in: DenseTensor1, k : Int)
   : mutable.PriorityQueue[(String, Double)] = {
     val pq = new mutable.PriorityQueue[(String, Double)]()(dis())
-    // find knn to the resulting vector
-    for (vocab <- Seq(unigrams.iterator, bigrams.iterator, trigrams.iterator)) {
-      while (vocab.hasNext) {
-        val (word, i) = vocab.next()
-        if (words.size != 1 || !words(0).equals(word)) {
-          val embedding_out = weights(i)
-          val score = TensorUtils.cosineDistance(embedding_in, embedding_out)
-          if (pq.size < k) pq.enqueue(word -> score)
-          else if (score > pq.head._2) {
-            // if the score is greater the min, then add to the heap
-            pq.dequeue()
-            pq.enqueue(word -> score)
+    if (embedding_in != null) {
+      // find knn to the resulting vector
+      for (vocab <- Seq(unigrams.iterator, bigrams.iterator, trigrams.iterator)) {
+        while (vocab.hasNext) {
+          val (word, i) = vocab.next()
+          if (words.size != 1 || !words(0).equals(word)) {
+            val embedding_out = weights(i)
+            val score = TensorUtils.cosineDistance(embedding_in, embedding_out)
+            if (pq.size < k) pq.enqueue(word -> score)
+            else if (score > pq.head._2) {
+              // if the score is greater the min, then add to the heap
+              pq.dequeue()
+              pq.enqueue(word -> score)
+            }
           }
         }
       }
@@ -79,7 +82,7 @@ class WordVectorMath(embedding : WordVectors){
     val expTerms = phrases.flatMap(t => nearestNeighbors(Array(t), word2Vec(t), knn)).toSeq.sortBy(-_._2).take(terms).map(w =>{
       if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
       else w
-    })
+    }).filterNot(w => nlp.lexicon.StopWords.containsWord(w._1))
     expTerms
   }
 
