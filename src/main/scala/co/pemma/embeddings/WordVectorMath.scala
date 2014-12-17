@@ -34,24 +34,16 @@ class WordVectorMath(embedding : WordVectors){
         // sum the input word vectors
         val embedding_in = sumWords(words)
         if (embedding_in != null) {
-          val pq = nearestNeighbors(words, embedding_in, K)
-          val arr = new Array[(String, Double)](pq.size)
-          var i = 0
-          while (pq.nonEmpty) {
-            // min heap
-            arr(i) = (pq.head._1, pq.head._2)
-            i += 1
-            pq.dequeue()
-          }
+          val nn = nearestNeighbors(words, embedding_in, K)
           println("\t\t\t\t\t\tWord\t\tCosine Distance")
-          arr.reverse.foreach(x => println("%50s\t\t%f".format(x._1, x._2)))
+          nn.reverse.foreach(x => println("%50s\t\t%f".format(x._1, x._2)))
         }
       }
     }
   }
 
   def nearestNeighbors(words: Array[String], embedding_in: DenseTensor1, k : Int)
-  : mutable.PriorityQueue[(String, Double)] = {
+  : Seq[(String, Double)] = {
     val pq = new mutable.PriorityQueue[(String, Double)]()(dis())
     if (embedding_in != null) {
       // find knn to the resulting vector
@@ -71,19 +63,26 @@ class WordVectorMath(embedding : WordVectors){
         }
       }
     }
-    pq
+    pq.toSeq
   }
 
-  def stringNearestNeighbors(inString : String) : Seq[(String, Double)] =
+  def stringNearestNeighbors(inString : String) : Seq[String] = //(String, Double)] =
   {
-    val knn = 5
+    val knn = 3
     val terms = 10
     val phrases = WordVectorUtils.extractPhrasesWindow(inString, this)
-    val expTerms = phrases.flatMap(t => nearestNeighbors(Array(t), word2Vec(t), knn)).toSeq.sortBy(-_._2).take(terms).map(w =>{
-      if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
-      else w
-    }).filterNot(w => nlp.lexicon.StopWords.containsWord(w._1))
-    expTerms
+    val expTerms = phrases.map(t => {
+      val nn = nearestNeighbors(Array(t), word2Vec(t), knn)
+      val q = nn.map(w=>{
+        if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
+      })
+      s" #synonym( ${q.mkString(" ")} )"
+    })
+//      .toSeq.sortBy(-_._2).take(terms).map(w =>{
+//      if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
+//      else w
+//    }).filterNot(w => nlp.lexicon.StopWords.containsWord(w._1))
+    expTerms.toSeq
   }
 
 
