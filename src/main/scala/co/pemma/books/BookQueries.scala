@@ -32,6 +32,7 @@ object BookQueries
   {
     assert(args.size > 0, " Must supply a query id number.")
     val qid = Integer.parseInt(args(0))
+
     val test = if (args.size > 1 && args(1) == "test") true else false
 
     // read in queries
@@ -43,6 +44,7 @@ object BookQueries
     // read in subjectmap
     val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))(io.Codec("UTF-8"))
     val subjects = subjectSource.getLines().map(line => { val parts = line.split("\\|"); parts(0) -> parts(1) }).toMap
+
     subjectSource.close()
 
     // make sure this subject is mappable
@@ -61,7 +63,7 @@ object BookQueries
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
     val defaultStopStructures = new StopStructuring(searcher.getUnderlyingRetrieval())
-    val cleanQuery = defaultStopStructures.removeStopStructure(query).toLowerCase
+    val cleanQuery = defaultStopStructures.removeStopStructure(query.replaceAll(".","")).toLowerCase
 
     // run sdm and rm queries and export results
     println("Running QL Query...")
