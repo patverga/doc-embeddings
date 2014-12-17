@@ -33,6 +33,8 @@ object ExpansionModels {
           docPuller: DocumentPuller[Document],
           numTerms: Int, collection : String = "robust"): Seq[(String, Double)] = {
 
+    if (baseRanking.isEmpty)
+      return Seq()
     val docProbs = LogTools.logExpSumNormalize[ScoredDocument](baseRanking, _.score).map(
       e => e._1.documentName -> e._2).toMap
 

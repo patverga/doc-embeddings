@@ -15,77 +15,38 @@ import scala.io.Source
 /**
  * Created by pv on 11/19/14.
  */
-object BookQueries
-{
-  // set some params
-  val numDocs = 2500
-  val numResults = 1000
-  val numExpansionDocs = 10
-  val numExpansionTerms = 50
-  val output = "./books/long-output/"
-  val langRegex = "[eE]ng(?:lish)?".r
-  val yearRegex = "[12][0-9]{3}".r
-  val minDate = 1800
-  val maxDate = 1940
-
+object BookQueries extends  BookTimeSearcher{
   def main(args: Array[String])
   {
-    assert(args.size > 0, " Must supply a query id number.")
-    val qid = Integer.parseInt(args(0))
-
-    val test = if (args.size > 1 && args(1) == "test") true else false
-
-    // read in queries
-    val querySource = Source.fromURL(getClass.getResource("/book_long_queries_50"))(io.Codec("UTF-8"))
-    val queries = querySource.getLines().toList
-    querySource.close()
-    val query =  queries(qid)
-
-    // read in subjectmap
-    val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))(io.Codec("UTF-8"))
-    val subjects = subjectSource.getLines().map(line => { val parts = line.split("\\|"); parts(0) -> parts(1) }).toMap
-
-    subjectSource.close()
-
-    // make sure this subject is mappable
-    assert(subjects.contains(query), s"The query \'$query\' does not exist in the subjects map.")
-    println(s" Running query number $qid: $query")
-
-    // set up galago
-    val skipIndex = Seq(8, 28, 37, 38)
-    val bookIndex = if (test) List("./index/page-filtered-index_02").asJava
-//      else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
-//        yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
-    else{ (for (i <- 0 to 43; if !skipIndex.contains(i); num = if (i < 10) s"0$i"; else s"$i")
-          yield s"./index/page-indices/page-filtered-index_$num").toList.asJava
-    }
-    val indexParam = new Parameters()
-    indexParam.set("index", bookIndex)
-    val searcher = GalagoSearcher(indexParam)
-    val defaultStopStructures = new StopStructuring(searcher.getUnderlyingRetrieval())
-    val cleanQuery = defaultStopStructures.removeStopStructure(query.replaceAll(".","")).toLowerCase
+    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String) = initialize(args)
 
     // run sdm and rm queries and export results
     println("Running QL Query...")
-    val qlRankings = searcher.retrieveScoredDocuments(s"#combine($cleanQuery)", None, numDocs)
+    val qlRankings = searcher.retrieveScoredDocuments(s"#combine($cleanQuery)", None, numResultDocs)
     exportResults(qid, query, subjects, "ql", searcher, qlRankings)
 
     println("Running SDM Query...")
     val galagoQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
-    val sdmRankings = searcher.retrieveScoredDocuments(galagoQuery, None, numDocs)
+    val sdmRankings = searcher.retrieveScoredDocuments(galagoQuery, None, numResultDocs)
     exportResults(qid, query, subjects, "sdm", searcher, sdmRankings)
 
     println("Running RM Query...")
     val expansionTerms = ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, numExpansionTerms)
-    val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher)
+    val rmRankings = ExpansionModels.runExpansionQuery(galagoQuery, expansionTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
+
+    println("Running single word embedding queries...")
+    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
+    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery)
+    val wordVecRankings = ExpansionModels.runExpansionQuery(galagoQuery, wordVecExpansionTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
 
     println("Running timeslice queries...")
     val pool = ListBuffer[ScoredDocument]()
-    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher)
+    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, galagoQuery, "robust", searcher, numResultDocs)
     for (decade <- maxDate to minDate by -10){
       val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
-      filterNot(term => { // dont use lang or year as exp terms
+        filterNot(term => { // dont use lang or year as exp terms
         yearRegex.pattern.matcher(term._1).matches() || langRegex.pattern.matcher(term._1).matches()})
       val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
         GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
@@ -94,13 +55,7 @@ object BookQueries
       pool ++= decadeRmRankings
       lastRankings = decadeRmRankings
     }
-    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResults)
-
-    println("Running single word embedding queries...")
-    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
-    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery)
-    val wordVecRankings = ExpansionModels.runExpansionQuery(galagoQuery, wordVecExpansionTerms, "robust", searcher)
-    exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
+    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResultDocs)
 
     println("Running time slice word embedding queries...")
     val decadeVecPool = ListBuffer[ScoredDocument]()
@@ -112,9 +67,62 @@ object BookQueries
           decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
       decadeVecPool ++= decadeVecRankings
     }
-    exportResults(qid, query, subjects, "time-vectors", searcher, decadeVecPool.sortBy(_.score) take numResults)
+    exportResults(qid, query, subjects, "time-vectors", searcher, decadeVecPool.sortBy(_.score) take numResultDocs)
   }
+}
 
+class BookTimeSearcher{
+  // set some params
+  val numResultDocs = 2500
+  val numExpansionDocs = 10
+  val numExpansionTerms = 50
+  var output = "./books/output/"
+  val langRegex = "[eE]ng(?:lish)?".r
+  val yearRegex = "[12][0-9]{3}".r
+  val minDate = 1800
+  val maxDate = 1940
+
+  def initialize(args: Array[String]): (Int, String, Map[String, String], GalagoSearcher, String) = {
+    assert(args.size > 0, " Must supply a query id number.")
+    val qid = Integer.parseInt(args(0))
+    val test = if (args.size > 1 && args(1) == "test") true else false
+
+    // read in queries
+    val queryFile = if (args.size > 2 && args(2) == "long") "/book_long_queries_50" else "/book_queries_5"
+    output += queryFile + "/"
+    val querySource = Source.fromURL(getClass.getResource(queryFile))(io.Codec("UTF-8"))
+    val queries = querySource.getLines().toList
+    querySource.close()
+    val query = queries(qid)
+
+    // read in subjectmap
+    val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))(io.Codec("UTF-8"))
+    val subjects = subjectSource.getLines().map(line => {
+      val parts = line.split("\\|");
+      parts(0) -> parts(1)
+    }).toMap
+    subjectSource.close()
+
+    // make sure this subject is mappable
+    assert(subjects.contains(query), s"The query \'$query\' does not exist in the subjects map.")
+    println(s" Running query number $qid: $query")
+
+    // set up galago
+    val skipIndex = Seq(8, 28, 37, 38)
+    val bookIndex = if (test) List("./index/page-filtered-index_02").asJava
+    //      else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
+    //        yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
+    else {
+      (for (i <- 0 to 43; if !skipIndex.contains(i); num = if (i < 10) s"0$i"; else s"$i")
+      yield s"./index/page-indices/page-filtered-index_$num").toList.asJava
+    }
+    val indexParam = new Parameters()
+    indexParam.set("index", bookIndex)
+    val searcher = GalagoSearcher(indexParam)
+    val defaultStopStructures = new StopStructuring(searcher.getUnderlyingRetrieval())
+    val cleanQuery = defaultStopStructures.removeStopStructure(query.replaceAll("\\.", "")).toLowerCase
+    (qid, query, subjects, searcher, cleanQuery)
+  }
 
   def exportResults(qid: Int, query : String, subjects: Map[String, String], runType: String,
                     searcher : GalagoSearcher, rankings: Seq[ScoredDocument])

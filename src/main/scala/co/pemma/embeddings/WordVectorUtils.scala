@@ -9,6 +9,7 @@ import cc.factorie.app.nlp.phrase.{NPChunkMentionFinder, BILOUChainChunker, Phra
 import cc.factorie.app.nlp.pos.OntonotesForwardPosTagger
 import cc.factorie.la.DenseTensor1
 import co.pemma.DocReader
+import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
 import org.lemurproject.galago.core.parse
 import scala.collection.mutable
