@@ -69,12 +69,12 @@ class WordVectorMath(embedding : WordVectors){
 
   def stringNearestNeighbors(inString : String, filter :Boolean = false) : Seq[String] = //(String, Double)] =
   {
-    val knn = 3
-    val terms = 10
+    val knn = 5
+//    val terms = 10
     val phrases = WordVectorUtils.extractPhrasesWindow(inString, this)
     val expTerms = phrases.map(t => {
       var nn = nearestNeighbors(Array(t), word2Vec(t), knn)
-      if (filter) nn.filter(w => StringUtils.getLevenshteinDistance(w._1, t).toDouble/((t.length + w._1.length)/2) <= .5)
+      if (filter) nn = nn.filter(w => StringUtils.getLevenshteinDistance(w._1, t).toDouble/((t.length + w._1.length)/2) <= .5)
       val q = nn.map(w=>{
         if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
       })
