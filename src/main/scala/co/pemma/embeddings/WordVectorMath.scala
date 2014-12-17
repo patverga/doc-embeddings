@@ -3,6 +3,7 @@ package co.pemma.embeddings
 import cc.factorie.app.nlp
 import cc.factorie.app.nlp.embeddings.TensorUtils
 import cc.factorie.la.{Tensor, DenseTensor1}
+import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
 
 import scala.collection.mutable
@@ -66,13 +67,14 @@ class WordVectorMath(embedding : WordVectors){
     pq.toSeq
   }
 
-  def stringNearestNeighbors(inString : String) : Seq[String] = //(String, Double)] =
+  def stringNearestNeighbors(inString : String, filter :Boolean = false) : Seq[String] = //(String, Double)] =
   {
     val knn = 3
     val terms = 10
     val phrases = WordVectorUtils.extractPhrasesWindow(inString, this)
     val expTerms = phrases.map(t => {
-      val nn = nearestNeighbors(Array(t), word2Vec(t), knn)
+      var nn = nearestNeighbors(Array(t), word2Vec(t), knn)
+      if (filter) nn.filter(w => StringUtils.getLevenshteinDistance(w._1, t).toDouble/((t.length + w._1.length)/2) <= .5)
       val q = nn.map(w=>{
         if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
       })

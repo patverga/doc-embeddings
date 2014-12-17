@@ -18,8 +18,14 @@ object TimeDriftTest extends BookTimeSearcher
 }
 
 object LevTest extends App{
-  val a = "lincoln"
-  val b = "lin cn"
-  println (StringUtils.getLevenshteinDistance(a, b).toDouble/((a.length + b.length)/2))
-  println (StringUtils.getLevenshteinDistance("cat", "sat").toDouble/3.)
+  val a = "confucianism"
+  val b = "buddhism"
+  val c = "shinto"
+  val d = "bud_dhism"
+  val e = "buddhistic"
+  println (StringUtils.getLevenshteinDistance(a, b).toDouble/((a.length + b.length).toDouble/2.0))
+  println (StringUtils.getLevenshteinDistance(c, b).toDouble/((c.length + b.length).toDouble/2.0))
+  println (StringUtils.getLevenshteinDistance(d, b).toDouble/((d.length + b.length).toDouble/2.0))
+  println (StringUtils.getLevenshteinDistance(e, b).toDouble/((e.length + b.length).toDouble/2.0))
+
 }

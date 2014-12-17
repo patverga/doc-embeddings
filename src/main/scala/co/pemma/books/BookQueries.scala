@@ -41,7 +41,7 @@ object BookQueries extends  BookTimeSearcher{
 
     println("Running single word embedding queries...")
     val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
-    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery)
+    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true)
     println(wordVecExpansionTerms.mkString("\n"))
     val wordVecRankings = ExpansionModels.runExpansionQuery(sdmQuery, wordVecExpansionTerms.map((_,1.0)), "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
@@ -60,14 +60,14 @@ object BookQueries extends  BookTimeSearcher{
       pool ++= decadeRmRankings
       lastRankings = decadeRmRankings
     }
-    exportResults(qid, query, subjects, "time", searcher, pool.sortBy(_.score) take numResultDocs)
+    exportResults(qid, query, subjects, "time-rm", searcher, pool.sortBy(_.score) take numResultDocs)
 
 
     println("Running time slice word embedding queries...")
     val decadeVecPool = ListBuffer[ScoredDocument]()
     for (decade <- minDate to maxDate by 10) {
       val decadeVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade/10}.vectors.dat"))
-      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery).map((_,1.0))
+      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery, filter = true).map((_,1.0))
       val decadeVecRankings = ExpansionModels.runDecadeExpansionQuery(decade,
         GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
           decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
