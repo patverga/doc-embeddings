@@ -83,6 +83,25 @@ class WordVectorMath(embedding : WordVectors){
     expTerms.toSeq
   }
 
+    def oldStringNearestNeighbors(inString : String, filter :Boolean = false, usePhrases:Boolean = true) : Seq[String] = //(String, Double)] =
+    {
+      val knn = 5
+  //    val terms = 10
+      val tokens : Iterable[String] = if (usePhrases) extractPhrasesWindow(inString) else inString.split("\\s+")
+      val expTerms = tokens.map(t => {
+          var nn = nearestNeighbors(Array(t), word2Vec(t), knn)
+          if (filter) nn = nn.filter(w => StringUtils.getLevenshteinDistance(w._1, t).toDouble/((t.length + w._1.length)/2) <= .5)
+          val q = nn.map(w=>{
+              if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
+            })
+          s" #synonym( ${q.mkString(" ")} )"
+        })
+  //      .toSeq.sortBy(-_._2).take(terms).map(w =>{
+    //      if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
+    //      else w
+    //    }).filterNot(w => nlp.lexicon.StopWords.containsWord(w._1))
+      expTerms.toSeq
+    }
 
   def sumWords(words: Iterable[String]) : DenseTensor1 = {
     val wordIds = words.map(word => getID(word)).filter(id => id != -1)

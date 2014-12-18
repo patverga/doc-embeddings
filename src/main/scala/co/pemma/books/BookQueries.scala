@@ -50,6 +50,17 @@ object BookQueries extends  BookTimeSearcher{
     val wordVecRankings = searcher.retrieveScoredDocuments(wordVecQuery, None, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
 
+    println("Running old word embedding queries...")
+    val wvExpansionTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true)
+    println(wvExpansionTerms.mkString("\n"))
+    val wvRankings = ExpansionModels.runExpansionQuery(sdmQuery, wvExpansionTerms.map((_,1.0)), "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-old", searcher, wvRankings)
+
+    println("Running hybrid word embedding queries...")
+    val wv3ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
+    val wv3Rankings = ExpansionModels.runExpansionQuery(sdmQuery, wv3ExpTerms.map((_,1.0)), "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-hybrid", searcher, wv3Rankings)
+
 
 //    println("Running timeslice queries...")
 //    val pool = ListBuffer[ScoredDocument]()
