@@ -2,8 +2,11 @@ package co.pemma.books
 
 import java.io.File
 
+import cc.factorie.app.nlp.embeddings.EmbeddingOpts
+import cc.factorie.util.CmdOptions
 import co.pemma.ExpansionModels
 import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
+import edu.umass.ciir.strepsi.StopWordList
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
 import org.lemurproject.galago.core.retrieval.ScoredDocument
@@ -20,7 +23,6 @@ object BookQueries extends  BookTimeSearcher{
   {
     val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
-
 
     println("Running QL Query...")
     val qlRankings = searcher.retrieveScoredDocuments(s"#combine($cleanQuery)", None, numResultDocs)
@@ -41,9 +43,11 @@ object BookQueries extends  BookTimeSearcher{
 
     println("Running single word embedding queries...")
     val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
-    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true)
-    println(wordVecExpansionTerms.mkString("\n"))
-    val wordVecRankings = ExpansionModels.runExpansionQuery(sdmQuery, wordVecExpansionTerms.map((_,1.0)), "robust", searcher, numResultDocs)
+    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
+//    val wordVecRankings = ExpansionModels.runExpansionQuery(sdmQuery, wordVecExpansionTerms.map((_,1.0)), "robust", searcher, numResultDocs)
+    val wordVecQuery = wordVecExpansionTerms.mkString("#sdm("," ", ")")
+    println(wordVecQuery)
+    val wordVecRankings = searcher.retrieveScoredDocuments(wordVecQuery, None, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
 
 
@@ -91,11 +95,12 @@ class BookTimeSearcher{
 
   def initialize(args: Array[String]): (Int, String, Map[String, String], GalagoSearcher, String) = {
     assert(args.size > 0, " Must supply a query id number.")
-    val qid = Integer.parseInt(args(0))
-    val test = if (args.size > 1 && args(1) == "test") true else false
+    val opts = new BookQueryOpts()
+    opts.parse(args)
+    val qid = opts.qid.value
 
     // read in queries
-    val queryFile = if (args.size > 2 && args(2) == "long") "/book_long_queries_50" else "/book_queries_5"
+    val queryFile = if (opts.useLongQueries.value) "/book_long_queries_50" else "/book_queries_5"
     output += queryFile + "/"
     val querySource = Source.fromURL(getClass.getResource(queryFile))(io.Codec("UTF-8"))
     val queries = querySource.getLines().toList
@@ -105,7 +110,7 @@ class BookTimeSearcher{
     // read in subjectmap
     val subjectSource = Source.fromURL(getClass.getResource("/subject-id-map"))(io.Codec("UTF-8"))
     val subjects = subjectSource.getLines().map(line => {
-      val parts = line.split("\\|");
+      val parts = line.split("\\|")
       parts(0) -> parts(1)
     }).toMap
     subjectSource.close()
@@ -116,7 +121,7 @@ class BookTimeSearcher{
 
     // set up galago
     val skipIndex = Seq(8, 28, 37, 38)
-    val bookIndex = if (test) List("./index/page-filtered-index_02").asJava
+    val bookIndex = if (opts.test.value) List("./index/page-filtered-index_02").asJava
     //      else{ (for (i <- 0 to 20; if i != 14; num = if (i < 10) s"0$i"; else s"$i")
     //        yield s"/work2/manmatha/michaelz/galago/Proteus/Proteus/homer/mzShards/pages-index_$num").toList.asJava
     else {
@@ -126,8 +131,7 @@ class BookTimeSearcher{
     val indexParam = new Parameters()
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
-    val defaultStopStructures = new StopStructuring(searcher.getUnderlyingRetrieval())
-    val cleanQuery = defaultStopStructures.removeStopStructure(query.replaceAll("\\.", "")).toLowerCase
+    val cleanQuery = GalagoQueryLib.normalize(query.toLowerCase).filterNot(StopWordList.isStopWord).mkString(" ")
     (qid, query, subjects, searcher, cleanQuery)
   }
 
@@ -178,5 +182,12 @@ class BookTimeSearcher{
       trecPrinter.close()
       qrelPrinter.close()
     }
+  }
+
+  class BookQueryOpts extends CmdOptions
+  {
+    val qid = new CmdOption("qid", 0, "INT", "Query id number.")
+    val test = new CmdOption("test", false, "BOOLEAN", "Use small subindex for testing.")
+    val useLongQueries = new CmdOption("long", false, "BOOLEAN", "Use long queries (short by default).")
   }
 }

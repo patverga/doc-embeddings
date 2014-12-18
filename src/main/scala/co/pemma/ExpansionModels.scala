@@ -140,7 +140,7 @@ object ExpansionModels {
     searcher.retrieveScoredDocuments(expandedQuery, Some(params), numResults)
   }
 
-  def runDecadeExpansionQuery(date : Int, galagoQuery : String, collection:String, searcher : GalagoSearcher, numResults : Int = 1000)
+  def runDecadeQuery(date : Int, galagoQuery : String, collection:String, searcher : GalagoSearcher, numResults : Int = 1000)
   : Seq[ScoredDocument] = {
     val params = getCollectionParams(collection)
     val decadeQuery = s"#require(#between(date ${date-1} ${date+10}) $galagoQuery)"

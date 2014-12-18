@@ -78,12 +78,8 @@ class WordVectorMath(embedding : WordVectors){
       val q = nn.map(w=>{
         if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
       })
-      s" #synonym( ${q.mkString(" ")} )"
+      s" #synonym( $t ${q.mkString(" ")} )"
     })
-//      .toSeq.sortBy(-_._2).take(terms).map(w =>{
-//      if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
-//      else w
-//    }).filterNot(w => nlp.lexicon.StopWords.containsWord(w._1))
     expTerms.toSeq
   }
 
@@ -171,7 +167,6 @@ class WordVectorMath(embedding : WordVectors){
    * Look over sliding window of 4 words at a time to extract trigram bigram and unigram phrases
    * contained in our vector model
    * @param doc preprocessed document
-   * @param wordVectors word vector model to check contains with
    * @return words and phrases from doc with vector representations
    */
   def extractPhrasesWindow(doc: String): Iterable[String] =
