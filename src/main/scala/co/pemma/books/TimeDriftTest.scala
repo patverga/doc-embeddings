@@ -15,7 +15,7 @@ object TimeDriftTest extends BookTimeSearcher
   val expTerms = 10
 
   def main(args: Array[String]) {
-    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String) = initialize(args)
+    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, useLongQueries : Boolean) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
 
 //    val minWordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/$minDate.vectors.dat"))
@@ -32,13 +32,14 @@ object TimeDriftTest extends BookTimeSearcher
     val allTerms = (decadeTerms :+ (0 -> ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, expTerms*2).
       filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms))).toMap
 
-    export(decadeTerms.toMap, query, qid)
+    export(decadeTerms.toMap, query, qid, useLongQueries)
   }
 
-  def export(termMap : Map[Int, Seq[(String, Double)]], query : String, qid : Int): Unit =
+  def export(termMap : Map[Int, Seq[(String, Double)]], query : String, qid : Int, longQueries : Boolean): Unit =
   {
-    new File("./books/output/query-drift/").mkdirs()
-    val printer = new java.io.PrintWriter(s"./books/output/query-drift/$qid")
+    val dir = if (longQueries) "./books/output/query-drift/long" else "./books/output/query-drift/short"
+    new File(dir).mkdirs()
+    val printer = new java.io.PrintWriter(s"$dir/$qid")
 
     val uniqueTerms = termMap.flatMap(_._2).map(_._1).toSet.size
     val spanTerms = (termMap(minDate)++termMap(maxDate)).map(_._1).toSet.size

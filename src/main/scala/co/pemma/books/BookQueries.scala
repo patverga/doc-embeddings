@@ -21,7 +21,7 @@ import scala.io.Source
 object BookQueries extends  BookTimeSearcher{
   def main(args: Array[String])
   {
-    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String) = initialize(args)
+    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, useLongQueries : Boolean) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
 
     println("Running QL Query...")
@@ -93,7 +93,8 @@ class BookTimeSearcher{
   val minDate = 1800
   val maxDate = 1940
 
-  def initialize(args: Array[String]): (Int, String, Map[String, String], GalagoSearcher, String) = {
+  def initialize(args: Array[String]): (Int, String, Map[String, String], GalagoSearcher, String, Boolean) =
+  {
     assert(args.size > 0, " Must supply a query id number.")
     val opts = new BookQueryOpts()
     opts.parse(args)
@@ -132,7 +133,7 @@ class BookTimeSearcher{
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
     val cleanQuery = GalagoQueryLib.normalize(query.toLowerCase).filterNot(StopWordList.isStopWord).mkString(" ")
-    (qid, query, subjects, searcher, cleanQuery)
+    (qid, query, subjects, searcher, cleanQuery, opts.useLongQueries.value)
   }
 
   def exportResults(qid: Int, query : String, subjects: Map[String, String], runType: String,
