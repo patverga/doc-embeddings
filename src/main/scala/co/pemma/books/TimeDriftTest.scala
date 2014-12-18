@@ -25,12 +25,12 @@ object TimeDriftTest extends BookTimeSearcher
     // querying each decade seperately
     val decadeTerms = for (decade <- maxDate to minDate by -10)
      yield decade ->ExpansionModels.lce(ExpansionModels.runDecadeQuery(decade, sdmQuery, "robust", searcher, numResultDocs)
-        take numExpansionDocs, searcher, expTerms).filterNot(term => yearRegex.pattern.matcher(term._1).matches())
+        take numExpansionDocs, searcher, expTerms*2).filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms)
 
     // querying all data at once
     val sdmRankings = searcher.retrieveScoredDocuments(sdmQuery, None, numResultDocs)
-    val allTerms = (decadeTerms :+ (0 -> ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, expTerms).
-      filterNot(term => yearRegex.pattern.matcher(term._1).matches()))).toMap
+    val allTerms = (decadeTerms :+ (0 -> ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, expTerms*2).
+      filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms))).toMap
 
     export(decadeTerms.toMap, query, qid)
   }
@@ -40,8 +40,8 @@ object TimeDriftTest extends BookTimeSearcher
     new File("./books/output/query-drift/").mkdirs()
     val printer = new java.io.PrintWriter(s"./books/output/query-drift/$qid")
 
-    val uniqueTerms = termMap.flatMap(_._2).flatMap(_._1).toSet.size
-    val spanTerms = (termMap(minDate)++termMap(maxDate)).flatMap(_._1).toSet.size
+    val uniqueTerms = termMap.flatMap(_._2).map(_._1).toSet.size
+    val spanTerms = (termMap(minDate)++termMap(maxDate)).map(_._1).toSet.size
 
     println(uniqueTerms, spanTerms)
     try {
