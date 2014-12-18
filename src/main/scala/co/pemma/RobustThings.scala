@@ -3,7 +3,7 @@ package co.pemma
 import java.io.File
 
 import cc.factorie.la.DenseTensor1
-import co.pemma.embeddings.{WordVectorMath, WordVectorUtils, WordVectorsSerialManager}
+import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
 import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
@@ -66,8 +66,8 @@ object RobustThings extends App {
     val collectionDocs = collectionRankings.map(doc => robustSearcher.pullDocumentWithTokens(doc.documentName))
 
     // setup embeddings
-    val queryPhrases = WordVectorUtils.extractPhrasesWindow(queryText, wordVecs)
-    val queryTensor = wordVecs.averageVectors(WordVectorUtils.words2Vectors(queryPhrases, wordVecs))
+    val queryPhrases = wordVecs.extractPhrasesWindow(queryText)
+    val queryTensor = wordVecs.averageVectors(wordVecs.words2Vectors(queryPhrases))
 
     baseLineResults(queryId, galagoQuery, collectionRankings, collectionTerms, queryTensor, queryText)
     sumAndClusterDocs(queryId, collectionRankings, collectionDocs, queryTensor)
@@ -80,11 +80,11 @@ object RobustThings extends App {
   {
     val (wikiTerms, wikiRankings) = ExpansionModels.expansionTerms(wikiSearcher, galagoQuery, 25, 5, 20, "wikipedia")
     val wikiEntities = wikiRankings.map(_.documentName)
-    val embeddingTerms = wordVecs.nearestNeighbors(Array(queryText), queryTensor, 20).toSeq.map(w => (WordVectorUtils.cleanString(w._1),w._2))
+    val embeddingTerms = wordVecs.nearestNeighbors(Array(queryText), queryTensor, 20).toSeq.map(w => (wordVecs.cleanString(w._1),w._2))
     // find top knn embeddings for each rm term and weight it by embedding distance * expansion value
     val rmEmbedExpansionTerms = collectionTerms.flatMap(term => {
       val termTensor = wordVecs.word2Vec(term._1)
-      if (termTensor != null) Seq(term) ++ wordVecs.nearestNeighbors(Array(term._1), termTensor, 3).map(n => (WordVectorUtils.cleanString(n._1), n._2*term._2))
+      if (termTensor != null) Seq(term) ++ wordVecs.nearestNeighbors(Array(term._1), termTensor, 3).map(n => (wordVecs.cleanString(n._1), n._2*term._2))
       else Seq(term)
     })
 
@@ -114,8 +114,8 @@ object RobustThings extends App {
   def sumAndClusterDocs(queryId: Int = 0, collectionRankings: Seq[ScoredDocument], collectionDocs : Seq[org.lemurproject.galago.core.parse.Document], queryVector : DenseTensor1) {
     // grab the actual docs form galago
     val embeddingRankings = collectionDocs.zipWithIndex.map({ case (doc, i) =>
-      val docPhrases = WordVectorUtils.extractPhrasesWindow(DocReader.parseRobust(doc.text), wordVecs)
-      val docTensors = WordVectorUtils.words2Vectors(docPhrases, wordVecs)
+      val docPhrases = wordVecs.extractPhrasesWindow(DocReader.parseRobust(doc.text))
+      val docTensors = wordVecs.words2Vectors(docPhrases)
 
       // get score from summing words in doc
       val avgDocTensor = wordVecs.averageVectors(docTensors)
@@ -149,8 +149,8 @@ object RobustThings extends App {
       // get the topK most similar sentences to the query for this doc
       val sentSimilarity = facDoc.sentences.map(s => {
         // convert each sentance to an averaged vector
-        val sentencePhrases = WordVectorUtils.extractPhrasesWindow(s.string, wordVecs)
-        val sentenceTensors = WordVectorUtils.words2Vectors(sentencePhrases, wordVecs)
+        val sentencePhrases = wordVecs.extractPhrasesWindow(s.string)
+        val sentenceTensors = wordVecs.words2Vectors(sentencePhrases)
         val sim = queryTensor.cosineSimilarity(wordVecs.averageVectors(sentenceTensors))
         (sim, s)
       }).toSeq.sortBy(-_._1) take topK

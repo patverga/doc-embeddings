@@ -5,7 +5,7 @@ import java.util
 import cc.factorie.app.nlp
 import cc.factorie.app.nlp.embeddings.{EmbeddingDistance, EmbeddingOpts, SkipGramNegSamplingEmbeddingModel}
 import cc.factorie.la.DenseTensor1
-import co.pemma.embeddings.{WordVectorUtils, WordVectorMath}
+import co.pemma.embeddings.{WordVectorMath}
 import weka.clusterers.SimpleKMeans
 import weka.core.{Attribute, DenseInstance, Instances}
 
