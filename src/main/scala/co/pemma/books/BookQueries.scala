@@ -41,34 +41,50 @@ object BookQueries extends  BookTimeSearcher{
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
 
-    println("\nRunning single word embedding queries...")
     val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
-    val wordVecExpansionTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
-//    val wordVecRankings = ExpansionModels.runExpansionQuery(sdmQuery, wordVecExpansionTerms.map((_,1.0)), "robust", searcher, numResultDocs)
-    val wordVecQuery = wordVecExpansionTerms.mkString("#sdm("," ", ")")
-    println(wordVecQuery)
-    val wordVecRankings = searcher.retrieveScoredDocuments(wordVecQuery, None, numResultDocs)
-    exportResults(qid, query, subjects, "wordvecs", searcher, wordVecRankings)
+    println("\nRunning word embedding 1 queries...")
+    val wv1ExpTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true)
+    println(wv1ExpTerms.mkString("\n"))
+    val wv1Rankings = ExpansionModels.runExpansionQuery(sdmQuery, wv1ExpTerms.map((_,1.0)), "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-1", searcher, wv1Rankings)
 
+    println("\nRunning word embedding 2 queries...")
+    val wv2ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
+    val wv2Query = wv2ExpTerms.mkString("#sdm("," ", ")")
+    println(wv2Query)
+    val wv2Rankings = searcher.retrieveScoredDocuments(wv2Query, None, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-2", searcher, wv2Rankings)
 
-    println("\nRunning old word embedding queries...")
-    val wvExpansionTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true)
-    println(wvExpansionTerms.mkString("\n"))
-    val wvRankings = ExpansionModels.runExpansionQuery(sdmQuery, wvExpansionTerms.map((_,1.0)), "robust", searcher, numResultDocs)
-    exportResults(qid, query, subjects, "wordvecs-old", searcher, wvRankings)
-
-
-    println("\nRunning hybrid word embedding queries...")
+    println("\nRunning word embedding 3 queries...")
     val wv3ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
     val wv3Rankings = ExpansionModels.runExpansionQuery(sdmQuery, wv3ExpTerms.map((_,1.0)), "robust", searcher, numResultDocs)
-    exportResults(qid, query, subjects, "wordvecs-hybrid", searcher, wv3Rankings)
+    exportResults(qid, query, subjects, "wordvecs-3", searcher, wv3Rankings)
 
 
-    println("\nRunning RM embedding Query...")
-    val rmWordVecExpansionTerms = wordVecs.stringNearestNeighbors(rmExpansionTerms.map(_._1).mkString(" "), filter = true, usePhrases = false)
-    val weightedExp = (rmWordVecExpansionTerms, rmExpansionTerms.map(_._2)).zipped.map( (_, _) )
-    val rm2Rankings = ExpansionModels.runExpansionQuery(sdmQuery, weightedExp, "robust", searcher, numResultDocs)
-    exportResults(qid, query, subjects, "rm-wordvec", searcher, rm2Rankings)
+    println("Running word embeddings 1 -> rm queries...")
+    val wv1RmExpTerms = ExpansionModels.lce(wv1Rankings take numExpansionDocs, searcher, numExpansionTerms).
+      filterNot(term => yearRegex.pattern.matcher(term._1).matches())
+    val wv1RmRankings = ExpansionModels.runExpansionQuery(sdmQuery, wv1RmExpTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-1-rm", searcher, wv1RmRankings)
+
+    println("Running word embeddings 2 -> rm queries...")
+    val wv2RmExpTerms = ExpansionModels.lce(wv2Rankings take numExpansionDocs, searcher, numExpansionTerms).
+      filterNot(term => yearRegex.pattern.matcher(term._1).matches())
+    val wv2RmRankings = ExpansionModels.runExpansionQuery(sdmQuery, wv2RmExpTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-2-rm", searcher, wv2RmRankings)
+
+    println("Running word embeddings 3 -> rm queries...")
+    val wv3RmExpTerms = ExpansionModels.lce(wv3Rankings take numExpansionDocs, searcher, numExpansionTerms).
+      filterNot(term => yearRegex.pattern.matcher(term._1).matches())
+    val wv3RmRankings = ExpansionModels.runExpansionQuery(sdmQuery, wv3RmExpTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "wordvecs-3-rm", searcher, wv3RmRankings)
+
+
+    //    println("\nRunning RM embedding Query...")
+//    val rmWordVecExpansionTerms = wordVecs.stringNearestNeighbors(rmExpansionTerms.map(_._1).mkString(" "), filter = true, usePhrases = false)
+//    val weightedExp = (rmWordVecExpansionTerms, rmExpansionTerms.map(_._2)).zipped.map( (_, _) )
+//    val rm2Rankings = ExpansionModels.runExpansionQuery(sdmQuery, weightedExp, "robust", searcher, numResultDocs)
+//    exportResults(qid, query, subjects, "rm-wordvec", searcher, rm2Rankings)
 
 
 //    println("Running timeslice queries..."
