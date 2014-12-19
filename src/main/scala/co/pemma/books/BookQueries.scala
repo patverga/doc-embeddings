@@ -30,7 +30,7 @@ object BookQueries extends  BookTimeSearcher{
 //
 //
 //    println("\nRunning SDM Query...")
-//    val sdmRankings = searcher.retrieveScoredDocuments(sdmQuery, None, numResultDocs)
+    val sdmRankings = searcher.retrieveScoredDocuments(sdmQuery, None, numResultDocs)
 //    exportResults(qid, query, subjects, "sdm", searcher, sdmRankings)
 //
 //
