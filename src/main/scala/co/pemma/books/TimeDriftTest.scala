@@ -51,7 +51,7 @@ object TimeDriftTest extends BookTimeSearcher
         terms.foreach(t => printer.write(t._1 + "\t"))
         printer.write("\n")
       }
-      printer.write(query + "\t" + uniqueTerms + "\t" + spanTerms)
+      printer.write(query + "\t" + uniqueTerms + "\t" + spanTerms + "\n")
     }
     finally {
       printer.close()
