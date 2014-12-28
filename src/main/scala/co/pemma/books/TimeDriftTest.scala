@@ -18,6 +18,8 @@ object TimeDriftTest extends BookTimeSearcher
     val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, useLongQueries : Boolean) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
 
+    searcher.getUnderlyingRetrieval()
+
 //    val minWordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/$minDate.vectors.dat"))
 //    val wordVecExpansionTerms = minWordVecs.nearestNeighbors(minWordVecs.word2Vec()cleanQuery, usePhrases = false)
 //    wordVecExpansionTerms.foreach(println(_))
