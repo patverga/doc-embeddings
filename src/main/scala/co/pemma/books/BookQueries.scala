@@ -61,19 +61,19 @@ object BookQueries extends  BookTimeSearcher{
     exportResults(qid, query, subjects, "wordvecs-3", searcher, wv3Rankings)
 
 
-    println("Running word embeddings 1 -> rm queries...")
+    println("\nRunning word embeddings 1 -> rm queries...")
     val wv1RmExpTerms = ExpansionModels.lce(wv1Rankings take numExpansionDocs, searcher, numExpansionTerms).
       filterNot(term => yearRegex.pattern.matcher(term._1).matches())
     val wv1RmRankings = ExpansionModels.runExpansionQuery(sdmQuery, wv1RmExpTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-1-rm", searcher, wv1RmRankings)
 
-    println("Running word embeddings 2 -> rm queries...")
+    println("\nRunning word embeddings 2 -> rm queries...")
     val wv2RmExpTerms = ExpansionModels.lce(wv2Rankings take numExpansionDocs, searcher, numExpansionTerms).
       filterNot(term => yearRegex.pattern.matcher(term._1).matches())
     val wv2RmRankings = ExpansionModels.runExpansionQuery(sdmQuery, wv2RmExpTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-2-rm", searcher, wv2RmRankings)
 
-    println("Running word embeddings 3 -> rm queries...")
+    println("\nRunning word embeddings 3 -> rm queries...")
     val wv3RmExpTerms = ExpansionModels.lce(wv3Rankings take numExpansionDocs, searcher, numExpansionTerms).
       filterNot(term => yearRegex.pattern.matcher(term._1).matches())
     val wv3RmRankings = ExpansionModels.runExpansionQuery(sdmQuery, wv3RmExpTerms, "robust", searcher, numResultDocs)
