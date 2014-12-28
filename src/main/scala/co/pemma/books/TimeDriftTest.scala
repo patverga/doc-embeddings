@@ -36,7 +36,7 @@ object TimeDriftTest extends BookTimeSearcher {
 //    val allTerms = (decadeTerms :+ (0 -> ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, expTerms * 2).
 //      filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms))).toMap
 
-    export1(decadeTerms.toMap, query, qid, useLongQueries)
+    export1(decadeTerms.toMap.take(export1Terms), query, qid, useLongQueries)
     export2(decadeTerms.toMap, query, qid, useLongQueries)
   }
 
@@ -45,7 +45,7 @@ object TimeDriftTest extends BookTimeSearcher {
     new File(dir).mkdirs()
     val printer = new java.io.PrintWriter(s"$dir/${query.replaceAll("\\s+", "_")}")
 
-    termMap.map(d => (d._1, d._2 take export1Terms))
+    termMap.map(d => (d._1, d._2))
     val uniqueTerms = termMap.flatMap(_._2).map(_._1).toSet.size
     val spanTerms = (termMap(minDate) ++ termMap(maxDate)).map(_._1).toSet.size
 
