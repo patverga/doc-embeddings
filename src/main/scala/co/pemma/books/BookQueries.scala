@@ -1,6 +1,7 @@
 package co.pemma.books
 
 import java.io.File
+import java.util
 
 import cc.factorie.app.nlp.embeddings.EmbeddingOpts
 import cc.factorie.util.CmdOptions
@@ -41,8 +42,8 @@ object BookQueries extends  BookTimeSearcher{
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
 
-    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
     println("\nRunning word embedding 1 queries...")
+    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
     val wv1ExpTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true)
     println(wv1ExpTerms.mkString("\n"))
     val wv1Rankings = ExpansionModels.runExpansionQuery(sdmQuery, wv1ExpTerms.map((_,1.0)), "robust", searcher, numResultDocs)
@@ -177,16 +178,21 @@ class BookTimeSearcher{
   {
     println(s"Exporting $runType Results")
     // make dirs
-    Seq("raw", "trec", "qrel").foreach(dir => new File(s"$output/$runType/$dir/").mkdirs())
+    Seq("raw", "trec-page", "qrel-page", "trec-book", "qrel-book").foreach(dir => new File(s"$output/$runType/$dir/").mkdirs())
 
     // various output formats
     val rawPrinter = new java.io.PrintWriter(s"$output/$runType/raw/${qid}_${subjects(query)}")
-    val trecPrinter = new java.io.PrintWriter(s"$output/$runType/trec/${qid}_${subjects(query)}")
-    val qrelPrinter = new java.io.PrintWriter(s"$output/$runType/qrel/${qid}_${subjects(query)}")
-//    val qrelPrinter = new java.io.PrintWriter(new BufferedWriter(new FileWriter(s"$output/$runType/qrel", true)))
+    val trecPagePrinter = new java.io.PrintWriter(s"$output/$runType/trec-page/${qid}_${subjects(query)}")
+    val qrelPagePrinter = new java.io.PrintWriter(s"$output/$runType/qrel-page/${qid}_${subjects(query)}")
+    val trecBookPrinter = new java.io.PrintWriter(s"$output/$runType/trec-book/${qid}_${subjects(query)}")
+    val qrelBookPrinter = new java.io.PrintWriter(s"$output/$runType/qrel-book/${qid}_${subjects(query)}")
+
     // keep track of number of docs that pass output criteria
-    var rank = 1
+    var pageRank = 1
+    var bookRank = 1
+    val usedBooks = new util.HashSet[String]
     val qSubjectID = subjects(query)
+
     try {
       rankings.foreach(rankedDoc => {
         // get some data to export
@@ -195,29 +201,41 @@ class BookTimeSearcher{
         val subject = doc.metadata.get("subject")
         val year = doc.metadata.get("date")
         val intYear = Integer.parseInt(year)
+        val book = rankedDoc.documentName.split("_", 2)(0)
+
         // make sure this doc has a valid year within the given range, mappable subject and is english
         if (year != null && minDate <= intYear && intYear <= maxDate && subject != null && lang != null && subjects.contains(subject)
           && langRegex.pattern.matcher(lang).matches() && yearRegex.pattern.matcher(year).matches())
         {
           val subjectID = subjects(subject)
           rawPrinter.println(s"$qid \t ${rankedDoc.rank} \t ${rankedDoc.score} \t ${doc.name} \t $subject \t $subjectID \t $year")
-          trecPrinter.println("%s Q0 %s %d %s %s".format(qid, doc.name, rank, "%10.8f".format(rankedDoc.score), runType))
+
           // estimate relevance by subject heading
-          var relevance = 0
-          if (subjectID.charAt(0) == qSubjectID.charAt(0)) {
-//            relevance += 2
-            if (subjectID.charAt(1) == qSubjectID.charAt(1))
-              relevance += 2
+          val relevance = if (subjectID.charAt(0) == qSubjectID.charAt(0)) {
+            if (subjectID.charAt(1) == qSubjectID.charAt(1)) 4 else 0 //2
+            } else 0
+
+          // export page results
+          trecPagePrinter.println("%s Q0 %s %d %s %s".format(qid, doc.name, pageRank, "%10.8f".format(rankedDoc.score), runType))
+          qrelPagePrinter.println("%s %s %s %s".format(qid, 0, doc.name, relevance))
+          pageRank += 1
+
+          // if this is the first time we've seen this book, rank it
+          if (!usedBooks.contains(book)){
+            trecBookPrinter.println("%s Q0 %s %d %s %s".format(qid, book, bookRank, "%10.8f".format(rankedDoc.score), runType))
+            qrelBookPrinter.println("%s %s %s %s".format(qid, 0, book, relevance))
+            usedBooks.add(book)
+            bookRank += 1
           }
-          qrelPrinter.println("%s %s %s %s".format(qid, 0, doc.name, relevance))
-          rank += 1
         }
       })
     }
     finally {
       rawPrinter.close()
-      trecPrinter.close()
-      qrelPrinter.close()
+      trecPagePrinter.close()
+      trecBookPrinter.close()
+      qrelPagePrinter.close()
+      qrelBookPrinter.close()
     }
   }
 
