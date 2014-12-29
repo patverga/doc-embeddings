@@ -36,7 +36,7 @@ object TimeDriftTest extends BookTimeSearcher {
 //    val allTerms = (decadeTerms :+ (0 -> ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, expTerms * 2).
 //      filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms))).toMap
 
-    export1(decadeTerms.toMap.take(export1Terms), query, qid, useLongQueries)
+    export1(decadeTerms.toMap, query, qid, useLongQueries)
     export2(decadeTerms.toMap, query, qid, useLongQueries)
   }
 
