@@ -45,13 +45,13 @@ object TimeDriftTest extends BookTimeSearcher {
     new File(dir).mkdirs()
     val printer = new java.io.PrintWriter(s"$dir/${query.replaceAll("\\s+", "_")}")
 
-    termMap.map(d => (d._1, d._2))
-    val uniqueTerms = termMap.flatMap(_._2).map(_._1).toSet.size
-    val spanTerms = (termMap(minDate) ++ termMap(maxDate)).map(_._1).toSet.size
+    val termMapSubset = termMap.map(d => (d._1, d._2 take export1Terms))
+    val uniqueTerms = termMapSubset.flatMap(_._2).map(_._1).toSet.size
+    val spanTerms = (termMapSubset(minDate) ++ termMapSubset(maxDate)).map(_._1).toSet.size
 
     println(uniqueTerms, spanTerms)
     try {
-      termMap.toSeq.sortBy(_._1).foreach { case (decade, terms) =>
+      termMapSubset.toSeq.sortBy(_._1).foreach { case (decade, terms) =>
         printer.write(decade + "\t")
         terms.foreach(t => printer.write(t._1 + "\t"))
         printer.write("\n")
