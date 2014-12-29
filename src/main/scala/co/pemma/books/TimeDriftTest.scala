@@ -17,7 +17,7 @@ object TimeDriftTest extends BookTimeSearcher {
   val export1Terms = 10
 
   def main(args: Array[String]) {
-    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, useLongQueries: Boolean) = initialize(args)
+    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, querySet: String) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
 
     searcher.getUnderlyingRetrieval()
@@ -36,12 +36,12 @@ object TimeDriftTest extends BookTimeSearcher {
 //    val allTerms = (decadeTerms :+ (0 -> ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, expTerms * 2).
 //      filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms))).toMap
 
-    export1(decadeTerms.toMap, query, qid, useLongQueries)
-    export2(decadeTerms.toMap, query, qid, useLongQueries)
+    export1(decadeTerms.toMap, query, qid, querySet)
+    export2(decadeTerms.toMap, query, qid, querySet)
   }
 
-  def export1(termMap: Map[Int, Seq[(String, Double)]], query: String, qid: Int, longQueries: Boolean): Unit = {
-    val dir = if (longQueries) "./books/output/query-drift/long-1" else "./books/output/query-drift/short-1"
+  def export1(termMap: Map[Int, Seq[(String, Double)]], query: String, qid: Int, querySet: String): Unit = {
+    val dir = s"./books/output/query-drift/$querySet-1"
     new File(dir).mkdirs()
     val printer = new java.io.PrintWriter(s"$dir/${query.replaceAll("\\s+", "_")}")
 
@@ -63,8 +63,8 @@ object TimeDriftTest extends BookTimeSearcher {
     }
   }
 
-  def export2(termMap: Map[Int, Seq[(String, Double)]], query: String, qid: Int, longQueries: Boolean): Unit = {
-    val dir = if (longQueries) "./books/output/query-drift/long-2" else "./books/output/query-drift/short-2"
+  def export2(termMap: Map[Int, Seq[(String, Double)]], query: String, qid: Int, querySet : String): Unit = {
+    val dir = s"./books/output/query-drift/$querySet-1"
     new File(dir).mkdirs()
     val printer = new java.io.PrintWriter(s"$dir/${query.replaceAll("\\s+", "_")}")
 

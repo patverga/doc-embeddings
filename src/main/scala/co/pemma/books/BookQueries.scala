@@ -20,9 +20,11 @@ import scala.io.Source
  * Created by pv on 11/19/14.
  */
 object BookQueries extends  BookTimeSearcher{
+  val editDistThreshold = .21212
+
   def main(args: Array[String])
   {
-    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, useLongQueries : Boolean) = initialize(args)
+    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, querySet : String) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
 
     println("\nRunning QL Query...")
@@ -44,20 +46,20 @@ object BookQueries extends  BookTimeSearcher{
 
     println("\nRunning word embedding 1 queries...")
     val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
-    val wv1ExpTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true)
+    val wv1ExpTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true, threshold = editDistThreshold)
     println(wv1ExpTerms.mkString("\n"))
     val wv1Rankings = ExpansionModels.runExpansionQuery(sdmQuery, wv1ExpTerms.map((_,1.0)), "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-1", searcher, wv1Rankings)
 
     println("\nRunning word embedding 2 queries...")
-    val wv2ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
+    val wv2ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
     val wv2Query = wv2ExpTerms.mkString("#sdm("," ", ")")
     println(wv2Query)
     val wv2Rankings = searcher.retrieveScoredDocuments(wv2Query, None, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-2", searcher, wv2Rankings)
 
     println("\nRunning word embedding 3 queries...")
-    val wv3ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false)
+    val wv3ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
     val wv3Rankings = ExpansionModels.runExpansionQuery(sdmQuery, wv3ExpTerms.map((_,1.0)), "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-3", searcher, wv3Rankings)
 
@@ -130,7 +132,7 @@ class BookTimeSearcher{
   val minDate = 1800
   val maxDate = 1940
 
-  def initialize(args: Array[String]): (Int, String, Map[String, String], GalagoSearcher, String, Boolean) =
+  def initialize(args: Array[String]): (Int, String, Map[String, String], GalagoSearcher, String, String) =
   {
     assert(args.size > 0, " Must supply a query id number.")
     val opts = new BookQueryOpts()
@@ -138,7 +140,9 @@ class BookTimeSearcher{
     val qid = opts.qid.value
 
     // read in queries
-    val queryFile = if (opts.useLongQueries.value) "/book_long_queries_50" else "/book_queries_5"
+    val queryFile = if (opts.querySet.value == "long" ) "/book_long_queries_50"
+                    else if (opts.querySet.value == "3") "/n-3-subjects"
+                    else "/book_queries_5"
     output += queryFile + "/"
     val querySource = Source.fromURL(getClass.getResource(queryFile))(io.Codec("UTF-8"))
     val queries = querySource.getLines().toList
@@ -170,7 +174,7 @@ class BookTimeSearcher{
     indexParam.set("index", bookIndex)
     val searcher = GalagoSearcher(indexParam)
     val cleanQuery = GalagoQueryLib.normalize(query.toLowerCase).filterNot(StopWordList.isStopWord).mkString(" ")
-    (qid, query, subjects, searcher, cleanQuery, opts.useLongQueries.value)
+    (qid, query, subjects, searcher, cleanQuery, opts.querySet.value)
   }
 
   def exportResults(qid: Int, query : String, subjects: Map[String, String], runType: String,
@@ -243,6 +247,6 @@ class BookTimeSearcher{
   {
     val qid = new CmdOption("qid", 0, "INT", "Query id number.")
     val test = new CmdOption("test", false, "BOOLEAN", "Use small subindex for testing.")
-    val useLongQueries = new CmdOption("long", false, "BOOLEAN", "Use long queries (short by default).")
+    val querySet = new CmdOption("query-set", "short", "STRING", "Use long, short or n3 queries (short by default).")
   }
 }
