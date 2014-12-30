@@ -3,7 +3,6 @@ package co.pemma.books
 import java.io.File
 
 import co.pemma.ExpansionModels
-import co.pemma.embeddings.{WordVectorUtils, WordVectorsSerialManager}
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import org.apache.commons.lang3.StringUtils
 
