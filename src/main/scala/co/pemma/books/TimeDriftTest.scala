@@ -17,7 +17,7 @@ object TimeDriftTest extends BookTimeSearcher {
   val export1Terms = 10
 
   def main(args: Array[String]) {
-    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, querySet: String) = initialize(args)
+    val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, querySet: String, editDistThreshold : Double) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
 
     searcher.getUnderlyingRetrieval()

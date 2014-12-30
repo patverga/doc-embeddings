@@ -133,11 +133,11 @@ object ExpansionModels {
   }
 
   def runExpansionQuery(galagoQuery : String, expansionTerms :Seq[(String, Double)], collection:String, searcher : GalagoSearcher, numResults : Int = 1000)
-  : Seq[ScoredDocument] = {
+  : (Seq[ScoredDocument], String) = {
     val params = getCollectionParams(collection)
     val expandedQuery = GalagoQueryLib.buildWeightedCombine(Seq((galagoQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(expansionTerms take 20), 1 - 0.55)))
     println("running query: " + expandedQuery)
-    searcher.retrieveScoredDocuments(expandedQuery, Some(params), numResults)
+    (searcher.retrieveScoredDocuments(expandedQuery, Some(params), numResults), expandedQuery)
   }
 
   def runDecadeQuery(date : Int, galagoQuery : String, collection:String, searcher : GalagoSearcher, numResults : Int = 1000)

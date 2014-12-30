@@ -88,10 +88,10 @@ object RobustThings extends App {
       else Seq(term)
     })
 
-    val wikiExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, wikiTerms, "robust", robustSearcher)
-    val rmExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, collectionTerms, "robust", robustSearcher)
-    val embeddingExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, embeddingTerms, "robust", robustSearcher)
-    val rmEmbedExpansionRankings = ExpansionModels.runExpansionQuery(galagoQuery, rmEmbedExpansionTerms, "robust", robustSearcher)
+    val (wikiExpansionRankings,_) = ExpansionModels.runExpansionQuery(galagoQuery, wikiTerms, "robust", robustSearcher)
+    val (rmExpansionRankings,_) = ExpansionModels.runExpansionQuery(galagoQuery, collectionTerms, "robust", robustSearcher)
+    val (embeddingExpansionRankings,_) = ExpansionModels.runExpansionQuery(galagoQuery, embeddingTerms, "robust", robustSearcher)
+    val (rmEmbedExpansionRankings,_) = ExpansionModels.runExpansionQuery(galagoQuery, rmEmbedExpansionTerms, "robust", robustSearcher)
 
     // export baseline results
     formatAndExportRankings(queryId, collectionRankings, "sdm")
