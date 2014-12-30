@@ -64,7 +64,7 @@ object TimeDriftTest extends BookTimeSearcher {
   }
 
   def export2(termMap: Map[Int, Seq[(String, Double)]], query: String, qid: Int, querySet : String): Unit = {
-    val dir = s"./books/output/query-drift/$querySet-1"
+    val dir = s"./books/output/query-drift/$querySet-2"
     new File(dir).mkdirs()
     val printer = new java.io.PrintWriter(s"$dir/${query.replaceAll("\\s+", "_")}")
 
