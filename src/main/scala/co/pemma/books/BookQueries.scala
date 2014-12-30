@@ -6,7 +6,7 @@ import java.util
 import cc.factorie.app.nlp.embeddings.EmbeddingOpts
 import cc.factorie.util.CmdOptions
 import co.pemma.ExpansionModels
-import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
+import co.pemma.embeddings.{WordVectorUtils, WordVectorsSerialManager}
 import edu.umass.ciir.strepsi.StopWordList
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
@@ -28,7 +28,7 @@ object BookQueries extends  BookTimeSearcher{
 
     baseLines(qid, query, subjects, searcher, cleanQuery, sdmQuery)
 
-    val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
+    val wordVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
 
     wordVec1(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
     wordVec2(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
@@ -61,7 +61,7 @@ object BookQueries extends  BookTimeSearcher{
 //    println("Running time slice word embedding queries...")
 //    val decadeVecPool = ListBuffer[ScoredDocument]()
 //    for (decade <- minDate to maxDate by 10) {
-//      val decadeVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade/10}.vectors.dat"))
+//      val decadeVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade/10}.vectors.dat"))
 //      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery, filter = true).map((_,1.0))
 //      val decadeVecRankings = ExpansionModels.runDecadeExpansionQuery(decade,
 //        GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
@@ -89,7 +89,7 @@ object BookQueries extends  BookTimeSearcher{
   }
 
   def wordVec1(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
-               sdmQuery: String, wordVecs: WordVectorMath, editDistThreshold : Double) {
+               sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
     println("\nRunning word embedding 1 queries...")
     val wv1ExpTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true, threshold = editDistThreshold)
     println(wv1ExpTerms.mkString("\n"))
@@ -104,10 +104,10 @@ object BookQueries extends  BookTimeSearcher{
   }
 
   def wordVec2(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
-               sdmQuery: String, wordVecs: WordVectorMath, editDistThreshold : Double) {
+               sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
     println("\nRunning word embedding 2 queries...")
     val wv2ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
-    val wv2Query = wv2ExpTerms.mkString("#sdm(", " ", ")")
+    val wv2Query = s"#combine:0=0.55:1=0.45($sdmQuery ${wv2ExpTerms.mkString("#sdm(", " ", ")")})"
     println(wv2Query)
     val wv2Rankings = searcher.retrieveScoredDocuments(wv2Query, None, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-2", searcher, wv2Rankings)
@@ -120,7 +120,7 @@ object BookQueries extends  BookTimeSearcher{
   }
 
   def wordVec3(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
-               sdmQuery: String, wordVecs: WordVectorMath, editDistThreshold : Double) {
+               sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
     println("\nRunning word embedding 3 queries...")
     val wv3ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
     val (wv3Rankings, wv3Query) = ExpansionModels.runExpansionQuery(sdmQuery, wv3ExpTerms.map((_, 1.0)), "robust", searcher, numResultDocs)

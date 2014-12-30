@@ -5,7 +5,7 @@ import java.util
 import cc.factorie.app.nlp
 import cc.factorie.app.nlp.embeddings.{EmbeddingDistance, EmbeddingOpts, SkipGramNegSamplingEmbeddingModel}
 import cc.factorie.la.DenseTensor1
-import co.pemma.embeddings.{WordVectorMath}
+import co.pemma.embeddings.{WordVectorUtils}
 import weka.clusterers.SimpleKMeans
 import weka.core.{Attribute, DenseInstance, Instances}
 
@@ -21,7 +21,7 @@ object Clusterer  extends  App
   val numClusters = 35
   val numIterations = 250
 
-  def documentCentroids(wordTensors : Iterable[DenseTensor1], wordVectors : WordVectorMath, K : Int, iterations : Int)
+  def documentCentroids(wordTensors : Iterable[DenseTensor1], wordVectors : WordVectorUtils, K : Int, iterations : Int)
   : Seq[DenseTensor1] =
   {
     val vecSize = wordTensors.head.size

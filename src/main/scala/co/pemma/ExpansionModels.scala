@@ -83,15 +83,10 @@ object ExpansionModels {
           case ex:DocumentPullException => {   }
         }
       }
-
-
     }
-
-    val topTerms = extractTopTerms(weightMap.toList, numTerms)
-
-    topTerms
-
+    extractTopTerms(weightMap.toList, numTerms)
   }
+
   def extractTopTerms(terms: Seq[(String, Double)], numTerms: Int) = {
     StopWordList.removeStopWord("us")
     val topTerms =

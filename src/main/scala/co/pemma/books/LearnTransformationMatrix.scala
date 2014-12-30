@@ -5,7 +5,7 @@ import cc.factorie.la.{DenseTensor2, DenseTensor1, WeightsMapAccumulator}
 import cc.factorie.model.Parameters
 import cc.factorie.optimize._
 import cc.factorie.util.DoubleAccumulator
-import co.pemma.embeddings.{WordVectorsSerialManager, WordVectorMath}
+import co.pemma.embeddings.{WordVectorsSerialManager, WordVectorUtils}
 
 import scala.io.Source
 /**
@@ -15,9 +15,9 @@ class TransformationMatrixModel(t1Location : String, t2Location : String, output
 {
   implicit val random = new scala.util.Random(0)
 
-  val T1 = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(t1Location))
+  val T1 = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(t1Location))
   val T2 = if (t1Location==t2Location || t2Location =="") T1 else
-   new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(t2Location))
+   new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(t2Location))
 
   val adaGradDelta = 0.1
   val adaGradRate = 0.025

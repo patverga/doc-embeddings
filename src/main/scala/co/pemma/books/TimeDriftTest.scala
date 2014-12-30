@@ -3,7 +3,7 @@ package co.pemma.books
 import java.io.File
 
 import co.pemma.ExpansionModels
-import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
+import co.pemma.embeddings.{WordVectorUtils, WordVectorsSerialManager}
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryBuilder, GalagoSearcher}
 import org.apache.commons.lang3.StringUtils
 
@@ -22,14 +22,14 @@ object TimeDriftTest extends BookTimeSearcher {
 
     searcher.getUnderlyingRetrieval()
 
-    //    val minWordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/$minDate.vectors.dat"))
+    //    val minWordVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/$minDate.vectors.dat"))
     //    val wordVecExpansionTerms = minWordVecs.nearestNeighbors(minWordVecs.word2Vec()cleanQuery, usePhrases = false)
     //    wordVecExpansionTerms.foreach(println(_))
 
     // querying each decade seperately
     val decadeTerms = for (decade <- maxDate to minDate by -10)
     yield decade -> ExpansionModels.lce(ExpansionModels.runDecadeQuery(decade, sdmQuery, "robust", searcher, numResultDocs)
-        take numExpansionDocs, searcher, expTerms * 2).filterNot(term => yearRegex.pattern.matcher(term._1).matches()).take(expTerms)
+        take numExpansionDocs, searcher, expTerms * 2).filterNot(term => digitRegex.pattern.matcher(term._1).matches()).filterNot(cleanQuery.contains(_)).take(expTerms)
 
 //    // querying all data at once
 //    val sdmRankings = searcher.retrieveScoredDocuments(sdmQuery, None, numResultDocs)

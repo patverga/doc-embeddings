@@ -3,7 +3,7 @@ package co.pemma
 import java.io.File
 
 import cc.factorie.la.DenseTensor1
-import co.pemma.embeddings.{WordVectorMath, WordVectorsSerialManager}
+import co.pemma.embeddings.{WordVectorUtils, WordVectorsSerialManager}
 import edu.umass.ciir.strepsi.trec.TrecRunWriter
 import edu.umass.ciir.strepsimur.galago.stopstructure.StopStructuring
 import edu.umass.ciir.strepsimur.galago.{GalagoQueryLib, GalagoQueryBuilder, GalagoSearcher}
@@ -50,7 +50,7 @@ object RobustThings extends App {
 
   //  val vectorLocation = "./vectors/newswire-vectors.dat"
   val vectorLocation = "./vectors/serial-vectors"
-  val wordVecs = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(vectorLocation))
+  val wordVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(vectorLocation))
 
   // process the querytext, convert to galgo
   //  val queryId = if (args.length > 0) args(0).toInt else queries.head._1

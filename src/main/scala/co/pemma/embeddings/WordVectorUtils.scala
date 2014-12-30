@@ -13,7 +13,7 @@ import scala.collection.mutable
  * Created by pat on 9/26/14.
  */
 
-class WordVectorMath(embedding : WordVectors){
+class WordVectorUtils(embedding : WordVectors){
   var threshold = embedding.threshold
   var unigrams = embedding.unigrams
   var bigrams = embedding.bigrams
@@ -78,8 +78,8 @@ class WordVectorMath(embedding : WordVectors){
       val q = nn.map(w=>{
         if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
       })
-      s" #synonym( $t ${q.mkString(" ")} )"
-    })
+      if (q.nonEmpty) s" #synonym( $t ${q.mkString(" ")} )" else " "
+    }).filter(_.trim.nonEmpty)
     expTerms.toSeq
   }
 
@@ -94,12 +94,8 @@ class WordVectorMath(embedding : WordVectors){
           val q = nn.map(w=>{
               if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
             })
-          s" #synonym( ${q.mkString(" ")} )"
-        })
-  //      .toSeq.sortBy(-_._2).take(terms).map(w =>{
-    //      if (w._1.contains('_')) (s"#sdm(${w._1.replaceAll("_"," ")})", w._2)
-    //      else w
-    //    }).filterNot(w => nlp.lexicon.StopWords.containsWord(w._1))
+          if (q.nonEmpty) s" #synonym( $t ${q.mkString(" ")} )" else " "
+        }).filter(_.trim.nonEmpty)
       expTerms.toSeq
     }
 

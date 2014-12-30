@@ -149,7 +149,7 @@ object SerializeVectorTxt extends App {
   WordVectorsSerialManager.vectorTxt2Serial(inLocation, outLocation)
   //  println(distance.phrase2Vec("bill clinton"))
   if (args.length > 1) {
-    val distance = new WordVectorMath(WordVectorsSerialManager.deserializeWordVectors(outLocation))
+    val distance = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(outLocation))
     distance.interactiveNearestNeighbor()
   }
 }
