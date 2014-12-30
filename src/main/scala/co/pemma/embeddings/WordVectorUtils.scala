@@ -78,8 +78,8 @@ class WordVectorUtils(embedding : WordVectors){
       val q = nn.map(w=>{
         if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
       })
-      if (q.nonEmpty) s" #synonym( $t ${q.mkString(" ")} )" else " "
-    }).filter(_.trim.nonEmpty)
+      if (q.nonEmpty) s" #synonym( $t ${q.mkString(" ")} )" else t
+    })
     expTerms.toSeq
   }
 
@@ -94,8 +94,8 @@ class WordVectorUtils(embedding : WordVectors){
           val q = nn.map(w=>{
               if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
             })
-          if (q.nonEmpty) s" #synonym( $t ${q.mkString(" ")} )" else " "
-        }).filter(_.trim.nonEmpty)
+          if (q.nonEmpty) s" #synonym( $t ${q.mkString(" ")} )" else t
+        })
       expTerms.toSeq
     }
 

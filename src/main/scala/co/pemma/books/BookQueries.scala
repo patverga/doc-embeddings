@@ -25,54 +25,22 @@ object BookQueries extends  BookTimeSearcher{
   {
     val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, querySet : String, editDistThreshold : Double) = initialize(args)
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
-
-    baseLines(qid, query, subjects, searcher, cleanQuery, sdmQuery)
-
     val wordVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
 
+    baseLines(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
+
+    // different word vector ocr error query generation variations
     wordVec1(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
     wordVec2(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
     wordVec3(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
 
-
-    //    println("\nRunning RM embedding Query...")
-//    val rmWordVecExpansionTerms = wordVecs.stringNearestNeighbors(rmExpansionTerms.map(_._1).mkString(" "), filter = true, usePhrases = false)
-//    val weightedExp = (rmWordVecExpansionTerms, rmExpansionTerms.map(_._2)).zipped.map( (_, _) )
-//    val rm2Rankings = ExpansionModels.runExpansionQuery(sdmQuery, weightedExp, "robust", searcher, numResultDocs)
-//    exportResults(qid, query, subjects, "rm-wordvec", searcher, rm2Rankings)
-
-
-//    println("Running timeslice queries..."
-//    val pool = ListBuffer[ScoredDocument]()
-//    var lastRankings = ExpansionModels.runDecadeExpansionQuery(maxDate, sdmQuery, "robust", searcher, numResultDocs)
-//    for (decade <- maxDate to minDate by -10){
-//      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
-//        filterNot(term => yearRegex.pattern.matcher(term._1).matches())
-//      val decadeRmRankings = ExpansionModels.runDecadeExpansionQuery(decade,
-//        GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
-//          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
-//        "robust", searcher)
-//      pool ++= decadeRmRankings
-//      lastRankings = decadeRmRankings
-//    }
-//    exportResults(qid, query, subjects, "time-rm", searcher, pool.sortBy(_.score) take numResultDocs)
-//
-//
-//    println("Running time slice word embedding queries...")
-//    val decadeVecPool = ListBuffer[ScoredDocument]()
-//    for (decade <- minDate to maxDate by 10) {
-//      val decadeVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade/10}.vectors.dat"))
-//      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery, filter = true).map((_,1.0))
-//      val decadeVecRankings = ExpansionModels.runDecadeExpansionQuery(decade,
-//        GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
-//          decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
-//      decadeVecPool ++= decadeVecRankings
-//    }
-//    exportResults(qid, query, subjects, "time-vectors", searcher, decadeVecPool.sortBy(_.score) take numResultDocs)
+//    timeSliceQueries(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
 
   }
 
-  def baseLines(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, sdmQuery: String) {
+
+  def baseLines(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
+                sdmQuery: String,  wordVecs: WordVectorUtils, editDistThreshold : Double) {
     println("\nRunning QL Query...")
     val qlRankings = searcher.retrieveScoredDocuments(s"#combine($cleanQuery)", None, numResultDocs)
     exportResults(qid, query, subjects, "ql", searcher, qlRankings)
@@ -86,7 +54,18 @@ object BookQueries extends  BookTimeSearcher{
       filterNot(term => digitRegex.pattern.matcher(term._1).matches())
     val (rmRankings, _) = ExpansionModels.runExpansionQuery(sdmQuery, rmExpansionTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
+
+    println("\nRunning RM word vec expanded Query...")
+    val rmWordVecExpansionTerms = rmExpansionTerms.take(20).map { case (term, score) =>
+        val termQuery =  wordVecs.stringNearestNeighbors(term, filter = true, usePhrases = false, threshold = editDistThreshold)
+      (termQuery.mkString(" "), score)
+    }
+//    val rmWordVecExpansionTerms = wordVecs.stringNearestNeighbors(rmExpansionTerms.map(_._1).mkString(" "), filter = true, usePhrases = false)
+//    val weightedExp = (rmWordVecExpansionTerms, rmExpansionTerms.map(_._2)).zipped.map( (_, _) )
+    val (rm2Rankings, rm2Query) = ExpansionModels.runExpansionQuery(sdmQuery, rmWordVecExpansionTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "rm-wordvec", searcher, rm2Rankings)
   }
+
 
   def wordVec1(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
                sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
@@ -102,6 +81,7 @@ object BookQueries extends  BookTimeSearcher{
     val (wv1RmRankings,_) = ExpansionModels.runExpansionQuery(wv1Query, wv1RmExpTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-1-rm", searcher, wv1RmRankings)
   }
+
 
   def wordVec2(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
                sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
@@ -119,6 +99,7 @@ object BookQueries extends  BookTimeSearcher{
     exportResults(qid, query, subjects, "wordvecs-2-rm", searcher, wv2RmRankings)
   }
 
+
   def wordVec3(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
                sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
     println("\nRunning word embedding 3 queries...")
@@ -131,6 +112,37 @@ object BookQueries extends  BookTimeSearcher{
       filterNot(term => digitRegex.pattern.matcher(term._1).matches())
     val (wv3RmRankings,_) = ExpansionModels.runExpansionQuery(wv3Query, wv3RmExpTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-3-rm", searcher, wv3RmRankings)
+  }
+
+
+  def timeSliceQueries(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
+                       sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double) {
+    println("\nRunning timeslice queries...")
+    val pool = ListBuffer[ScoredDocument]()
+    var lastRankings = ExpansionModels.runDecadeQuery(maxDate, sdmQuery, "robust", searcher, numResultDocs)
+    for (decade <- maxDate to minDate by -10) {
+      val decadeExpansionTerms = ExpansionModels.lce(lastRankings take numExpansionDocs, searcher, numExpansionTerms).
+        filterNot(term => yearRegex.pattern.matcher(term._1).matches())
+      val decadeRmRankings = ExpansionModels.runDecadeQuery(decade,
+        GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
+          decadeExpansionTerms take numExpansionTerms), 1 - 0.55))),
+        "robust", searcher)
+      pool ++= decadeRmRankings
+      lastRankings = decadeRmRankings
+    }
+    exportResults(qid, query, subjects, "time-rm", searcher, pool.sortBy(_.score) take numResultDocs)
+
+    println("\nRunning time slice word embedding queries...")
+    val decadeVecPool = ListBuffer[ScoredDocument]()
+    for (decade <- minDate to maxDate by 10) {
+      val decadeVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade / 10}.vectors.dat"))
+      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery, filter = true).map((_, 1.0))
+      val decadeVecRankings = ExpansionModels.runDecadeQuery(decade,
+        GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
+          decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
+      decadeVecPool ++= decadeVecRankings
+    }
+    exportResults(qid, query, subjects, "time-vectors", searcher, decadeVecPool.sortBy(_.score) take numResultDocs)
   }
 }
 
