@@ -166,9 +166,9 @@ class BookTimeSearcher{
     val qid = opts.qid.value
 
     // read in queries
-    val queryFile = if (opts.querySet.value == "long" ) "/book_long_queries_50"
-                    else if (opts.querySet.value == "3") "/n-3-subjects"
-                    else "/book_queries_5"
+    val queryFile = if (opts.querySet.value == "long" ) "/long-queries"
+                    else if (opts.querySet.value == "3") "/n3-queries"
+                    else "/short-queries"
     output += queryFile + "/"
     val querySource = Source.fromURL(getClass.getResource(queryFile))(io.Codec("UTF-8"))
     val queries = querySource.getLines().toList
