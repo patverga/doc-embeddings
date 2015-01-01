@@ -67,10 +67,8 @@ class WordVectorUtils(embedding : WordVectors){
     pq.toSeq
   }
 
-  def stringNearestNeighbors(inString : String, filter :Boolean = false, usePhrases:Boolean = true, threshold :Double = 0.33) : Seq[String] = //(String, Double)] =
+  def editDistanceNearestNeighbors(inString : String, filter :Boolean = false, usePhrases:Boolean = true, threshold :Double = 0.33, knn : Int = 10) : Seq[String] = //(String, Double)] =
   {
-    val knn = 5
-//    val terms = 10
     val tokens : Iterable[String] = if (usePhrases) extractPhrasesWindow(inString) else inString.split("\\s+")
     val expTerms = tokens.map(t => {
       var nn = nearestNeighbors(Array(t), word2Vec(t), knn)
@@ -78,26 +76,22 @@ class WordVectorUtils(embedding : WordVectors){
       val q = nn.map(w=>{
         if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
       })
-      if (q.nonEmpty) s" #synonym( ${t.replaceAll("_", " ")} ${q.mkString(" ")} )" else t.replaceAll("_", " ")
+      s" #synonym( ${q.mkString(" ")} )"
     })
     expTerms.toSeq
   }
 
-    def oldStringNearestNeighbors(inString : String, filter :Boolean = false, usePhrases:Boolean = true, threshold :Double =.5) : Seq[String] = //(String, Double)] =
-    {
-      val knn = 5
-  //    val terms = 10
-      val tokens : Iterable[String] = if (usePhrases) extractPhrasesWindow(inString) else inString.split("\\s+")
-      val expTerms = tokens.map(t => {
-          var nn = nearestNeighbors(Array(t), word2Vec(t), knn)
-          if (filter) nn = nn.filter(w => StringUtils.getLevenshteinDistance(w._1, t).toDouble/((t.length + w._1.length)/2.0) <= threshold)
-          val q = nn.map(w=>{
-              if (w._1.contains('_')) s" #ordered(${w._1.replaceAll("_", " ")}) " else w._1
-            })
-          if (q.nonEmpty) s" #synonym( ${t.replaceAll("_", " ")} ${q.mkString(" ")} )" else t.replaceAll("_", " ")
-        })
-      expTerms.toSeq
-    }
+  def queryNearestNeighbors(inString : String, filter :Boolean = false, usePhrases:Boolean = true, knn:Int = 10) : Seq[(String, Double)] =
+  {
+    val tokens : Iterable[String] = if (usePhrases) extractPhrasesWindow(inString) else inString.split("\\s+")
+    val expTerms = tokens.flatMap(t => {
+      nearestNeighbors(Array(t), word2Vec(t), knn).map(w=>{
+        (if (w._1.contains('_')) w._1.replaceAll("_", " ") else w._1, w._2)
+      }) ++ Seq((t, .8))
+    })
+    expTerms.toSeq
+  }
+
 
   def sumWords(words: Iterable[String]) : DenseTensor1 = {
     val wordIds = words.map(word => getID(word)).filter(id => id != -1)

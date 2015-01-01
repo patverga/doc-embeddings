@@ -29,7 +29,8 @@ object BookQueries extends  BookTimeSearcher{
     val sdmQuery = GalagoQueryBuilder.seqdep(cleanQuery).queryStr
     val wordVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
 
-    baseLines(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
+    val rmExpTerms = baseLines(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold)
+    intersectUnionQueries(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, rmExpTerms)
 
     // different word vector ocr error query generation variations
     wordVec1(qid, query, subjects, searcher, cleanQuery, sdmQuery, wordVecs, editDistThreshold, runRm)
@@ -40,9 +41,8 @@ object BookQueries extends  BookTimeSearcher{
 
   }
 
-
   def baseLines(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
-                sdmQuery: String,  wordVecs: WordVectorUtils, editDistThreshold : Double) {
+                sdmQuery: String,  wordVecs: WordVectorUtils, editDistThreshold : Double) :  Seq[(String, Double)] = {
     println("\nRunning QL Query...")
     val qlRankings = searcher.retrieveScoredDocuments(s"#combine($cleanQuery)", None, numResultDocs)
     exportResults(qid, query, subjects, "ql", searcher, qlRankings)
@@ -53,7 +53,7 @@ object BookQueries extends  BookTimeSearcher{
 
     println("\nRunning RM Query...")
     val rmExpansionTerms = ExpansionModels.lce(sdmRankings take numExpansionDocs, searcher, numExpansionTerms).
-      filterNot(term => digitRegex.pattern.matcher(term._1).matches())
+      filterNot(t => digitRegex.pattern.matcher(t._1).matches() || langRegex.pattern.matcher(t._1).matches() || cleanQuery.contains(t._1))
     val (rmRankings, _) = ExpansionModels.runExpansionQuery(sdmQuery, rmExpansionTerms, "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "rm", searcher, rmRankings)
 
@@ -64,13 +64,38 @@ object BookQueries extends  BookTimeSearcher{
 //    }
 //    val (rm2Rankings, rm2Query) = ExpansionModels.runExpansionQuery(sdmQuery, rmWordVecExpansionTerms, "robust", searcher, numResultDocs)
 //    exportResults(qid, query, subjects, "rm-wordvec", searcher, rm2Rankings)
+
+    rmExpansionTerms
   }
 
+  def intersectUnionQueries(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
+                            sdmQuery: String, wordVecs: WordVectorUtils, rmExpTerms: Seq[(String, Double)])
+  {
+    val wordVecExpTerms = wordVecs.queryNearestNeighbors(cleanQuery, filter = true, usePhrases = true, knn=10).filterNot(t=>cleanQuery.contains(t._1))
+
+    println("\nRunning interesect queries...")
+    val intersectTerms = rmExpTerms.map(_._1).toSet.intersect(wordVecExpTerms.map(_._1).toSet)
+    val filteredIntersectExpTerms = rmExpTerms.filter(t => intersectTerms.contains(t._1))
+    val (intersectRankings, _) = ExpansionModels.runExpansionQuery(sdmQuery, filteredIntersectExpTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "intersect", searcher, intersectRankings)
+
+    println("\nRunning union queries...")
+    val wordVecMin = wordVecExpTerms.minBy(_._2)._2
+    val wordVecMax = wordVecExpTerms.maxBy(_._2)._2
+    val rmMin = rmExpTerms.minBy(_._2)._2
+    val rmMax = rmExpTerms.maxBy(_._2)._2
+    // union of rm and wordvec terms normalized probability
+    val unionTerms = (rmExpTerms.map(t => (t._1, (t._2 - rmMin) / (rmMax - rmMin))) ++
+      wordVecExpTerms.filterNot(t=>intersectTerms.contains(t._1)).map(t => (t._1, (t._2 - wordVecMin) / (wordVecMax - wordVecMin))))
+      .sortBy(-_._2)
+    val (unionRankings, _) = ExpansionModels.runExpansionQuery(sdmQuery, unionTerms, "robust", searcher, numResultDocs)
+    exportResults(qid, query, subjects, "union", searcher, unionRankings)
+  }
 
   def wordVec1(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
                sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double, rm :Boolean) {
     println("\nRunning word embedding 1 queries...")
-    val wv1ExpTerms = wordVecs.oldStringNearestNeighbors(cleanQuery, filter = true, threshold = editDistThreshold)
+    val wv1ExpTerms = wordVecs.editDistanceNearestNeighbors(cleanQuery, filter = true, threshold = editDistThreshold)
     println(wv1ExpTerms.mkString("\n"))
     val (wv1Rankings, wv1Query) = ExpansionModels.runExpansionQuery(sdmQuery, wv1ExpTerms.map((_, 1.0)), "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-1", searcher, wv1Rankings)
@@ -88,7 +113,7 @@ object BookQueries extends  BookTimeSearcher{
   def wordVec2(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
                sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double, rm : Boolean) {
     println("\nRunning word embedding 2 queries...")
-    val wv2ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
+    val wv2ExpTerms = wordVecs.editDistanceNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
     val wv2Query = s"#combine:0=0.55:1=0.45($sdmQuery ${wv2ExpTerms.mkString("#sdm(", " ", ")")})"
     println(wv2Query)
     val wv2Rankings = searcher.retrieveScoredDocuments(wv2Query, None, numResultDocs)
@@ -107,7 +132,7 @@ object BookQueries extends  BookTimeSearcher{
   def wordVec3(qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String,
                sdmQuery: String, wordVecs: WordVectorUtils, editDistThreshold : Double, rm : Boolean) {
     println("\nRunning word embedding 3 queries...")
-    val wv3ExpTerms = wordVecs.stringNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
+    val wv3ExpTerms = wordVecs.editDistanceNearestNeighbors(cleanQuery, filter = true, usePhrases = false, threshold = editDistThreshold)
     val (wv3Rankings, wv3Query) = ExpansionModels.runExpansionQuery(sdmQuery, wv3ExpTerms.map((_, 1.0)), "robust", searcher, numResultDocs)
     exportResults(qid, query, subjects, "wordvecs-3", searcher, wv3Rankings)
 
@@ -142,7 +167,7 @@ object BookQueries extends  BookTimeSearcher{
     val decadeVecPool = ListBuffer[ScoredDocument]()
     for (decade <- minDate to maxDate by 10) {
       val decadeVecs = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors(s"./vectors/decade-vectors/${decade / 10}.vectors.dat"))
-      val decadeVecExpansionTerms = decadeVecs.stringNearestNeighbors(cleanQuery, filter = true).map((_, 1.0))
+      val decadeVecExpansionTerms = decadeVecs.editDistanceNearestNeighbors(cleanQuery, filter = true).map((_, 1.0))
       val decadeVecRankings = ExpansionModels.runDecadeQuery(decade,
         GalagoQueryLib.buildWeightedCombine(Seq((sdmQuery, 0.55), (GalagoQueryLib.buildWeightedCombine(
           decadeVecExpansionTerms take numExpansionTerms), 1 - 0.55))), "robust", searcher)
@@ -278,7 +303,7 @@ class BookTimeSearcher{
   class BookQueryOpts extends CmdOptions
   {
     val qid = new CmdOption("qid", 0, "INT", "Query id number.")
-    val editThreshold = new CmdOption("threshold", .25, "DOUBLE", "Edit distance threshold to use.")
+    val editThreshold = new CmdOption("threshold", .21212, "DOUBLE", "Edit distance threshold to use.")
     val test = new CmdOption("test", false, "BOOLEAN", "Use small subindex for testing.")
     val querySet = new CmdOption("query-set", "short", "STRING", "Use long, short or n3 queries (short by default).")
   }
