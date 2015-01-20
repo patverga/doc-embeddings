@@ -141,33 +141,37 @@ class UpdateableSkipGramEmbeddingModel(override val opts: EmbeddingOpts) extends
     }
   }
 
-  def distance(word: String, K :Int, words:Seq[String]): Unit ={
-    val embedding_in = weights(vocab.getId(word)).value
+  def distance(word: String, K :Int, words:Seq[String]): Unit = {
+    val id = vocab.getId(word)
+    if (id >= 0) {
+      val embedding_in = weights(id).value
 
-    val pq = new mutable.PriorityQueue[(String, Double)]()(dis())
-    words.zipWithIndex.foreach{case (w, index) =>
-      val id = vocab.getId(w)
-      if (id > -1) {
-        val embedding_out = weights(id).value
-        val score = embedding_in.cosineSimilarity(embedding_out)
-        if (index < K)
-          pq.enqueue(w -> score)
-        else if (score > pq.head._2) {
-          // if the score is greater the min, then add to the heap
-          pq.dequeue()
-          pq.enqueue(w -> score)
+      val pq = new mutable.PriorityQueue[(String, Double)]()(dis())
+      words.zipWithIndex.foreach { case (w, index) =>
+        val id = vocab.getId(w)
+        if (id > -1) {
+          val embedding_out = weights(id).value
+          val score = embedding_in.cosineSimilarity(embedding_out)
+          if (index < K)
+            pq.enqueue(w -> score)
+          else if (score > pq.head._2) {
+            // if the score is greater the min, then add to the heap
+            pq.dequeue()
+            pq.enqueue(w -> score)
+          }
         }
       }
+      val arr = new Array[(String, Double)](pq.size)
+      var i = 0
+      while (pq.nonEmpty) {
+        // min heap
+        arr(i) = (pq.head._1, pq.head._2)
+        i += 1
+        pq.dequeue()
+      }
+      println("\t\t\t\t\t\tWord\t\tCosine Distance")
+      arr.foreach(x => println("%50s\t\t%f".format(x._1, x._2)))
     }
-    val arr = new Array[(String, Double)](pq.size)
-    var i = 0
-    while (pq.nonEmpty) { // min heap
-      arr(i) = (pq.head._1, pq.head._2)
-      i += 1
-      pq.dequeue()
-    }
-    println("\t\t\t\t\t\tWord\t\tCosine Distance")
-    arr.foreach(x => println("%50s\t\t%f".format(x._1, x._2)))
   }
 
 
