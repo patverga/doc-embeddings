@@ -23,7 +23,7 @@ object UpdateEmbedding extends BookTimeSearcher {
   def main(args: Array[String]) {
     val (qid: Int, query: String, subjects: Map[String, String], searcher: GalagoSearcher, cleanQuery: String, querySet: String, editDistThreshold: Double) = initialize(args)
 
-    val wordVecStart = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors("./vectors/decade-vectors/180-194.vectors.dat"))
+    val wordVecStart = new WordVectorUtils(WordVectorsSerialManager.deserializeWordVectors("/home/pv/doc-embeddings/vectors/decade-vectors/180-194.vectors.dat"))
 
     wordVecStart.nearestNeighbors(Array("turkey"),wordVecStart.word2Vec("turkey"),20).foreach(w => println(w + " "))
 //    wordVecStart.nearestNeighbors(Array("washington"),wordVecStart.word2Vec("washington"),5).foreach(w => print(w + " "))
@@ -59,8 +59,8 @@ object UpdateEmbedding extends BookTimeSearcher {
       s"--output=./$out"))
 
     val wordEmbedModel = new UpdateableSkipGramEmbeddingModel(opts)
-    wordEmbedModel.initialize(wordVecStart)
-    wordEmbedModel.initializeFromStrings(words)
+    wordEmbedModel.initializeFromModel(wordVecStart)
+//    wordEmbedModel.initializeFromStrings(words)
     wordEmbedModel.updateModel(docs)
 
 
@@ -77,7 +77,7 @@ class UpdateableSkipGramEmbeddingModel(override val opts: EmbeddingOpts) extends
   private var train_words: Long = 0 // total # of words in the corpus. Needed to calculate the distribution of the work among threads and seek points of corpus file
   val iterations = 15
 
-  def initialize(wv : WordVectorUtils): Unit = {
+  def initializeFromModel(wv : WordVectorUtils): Unit = {
     vocab = new VocabBuilder(vocabHashSize, samplingTableSize, 0.7) // 0.7 is the load factor
     val weightDex : Seq[Int] = wv.unigrams.map { case (w, i) => vocab.addWordToVocab(w); i }.toSeq ++
         wv.bigrams.map { case (w, i) => vocab.addWordToVocab(w); i }.toSeq ++
